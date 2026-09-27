@@ -48,7 +48,7 @@ también valida las peticiones cuando se invoca directamente, fuera del controla
 | Método | Ruta | Resultado |
 | --- | --- | --- |
 | `POST` | `/api/tasks` | `201 Created`, tarea creada y cabecera `Location`. |
-| `GET` | `/api/tasks` | `200 OK`, lista ordenada por `id` o `[]`. |
+| `GET` | `/api/tasks` | `200 OK`, lista ordenada por `id` o `[]`; admite el filtro opcional `status`. |
 | `GET` | `/api/tasks/{id}` | `200 OK` o `404 Not Found`. |
 | `PUT` | `/api/tasks/{id}` | `200 OK` o `404 Not Found`. |
 | `DELETE` | `/api/tasks/{id}` | `204 No Content` o `404 Not Found`. |
@@ -67,6 +67,7 @@ curl -i -X POST http://localhost:8080/api/tasks \
 
 # Listar y consultar
 curl -i http://localhost:8080/api/tasks
+curl -i 'http://localhost:8080/api/tasks?status=IN_PROGRESS'
 curl -i http://localhost:8080/api/tasks/1
 
 # Actualizar
@@ -129,7 +130,7 @@ Se comprueban las fechas pasadas y el límite de hoy; títulos ausentes, vacíos
 demasiado largos; descripciones demasiado largas; campos obligatorios; límites
 máximos permitidos; normalización del título; actualización sin cambiar el ID;
 rechazo de cambios inválidos sin alterar la entidad; consulta y borrado de recursos
-inexistentes; listado; y traducción de errores a respuestas HTTP.
+inexistentes; listado y filtrado por estado; y traducción de errores a respuestas HTTP.
 
 **Solo hay tests unitarios**: no se utilizan `@SpringBootTest`, `@DataJpaTest`,
 `@WebMvcTest`, contextos de Spring ni conexiones a bases de datos. Las pruebas del

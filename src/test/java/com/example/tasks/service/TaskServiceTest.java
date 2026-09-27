@@ -210,17 +210,30 @@ class TaskServiceTest {
         Task second = task(2L);
         when(repository.findAll(Sort.by("id"))).thenReturn(List.of(first, second));
 
-        List<TaskResponse> result = service.findAll();
+        List<TaskResponse> result = service.findAll(null);
 
         assertEquals(List.of(TaskResponse.from(first), TaskResponse.from(second)), result);
         verify(repository).findAll(Sort.by("id"));
     }
 
     @Test
+    void findAllFiltersByStatusAndOrdersById() {
+        Task first = task(1L, TaskStatus.IN_PROGRESS);
+        Task second = task(2L, TaskStatus.IN_PROGRESS);
+        when(repository.findAllByStatus(TaskStatus.IN_PROGRESS, Sort.by("id")))
+                .thenReturn(List.of(first, second));
+
+        List<TaskResponse> result = service.findAll(TaskStatus.IN_PROGRESS);
+
+        assertEquals(List.of(TaskResponse.from(first), TaskResponse.from(second)), result);
+        verify(repository).findAllByStatus(TaskStatus.IN_PROGRESS, Sort.by("id"));
+    }
+
+    @Test
     void findAllReturnsEmptyListWhenThereAreNoTasks() {
         when(repository.findAll(Sort.by("id"))).thenReturn(List.of());
 
-        assertEquals(List.of(), service.findAll());
+        assertEquals(List.of(), service.findAll(null));
     }
 
     @Test
@@ -270,7 +283,11 @@ class TaskServiceTest {
     }
 
     private Task task(Long id) {
-        Task task = new Task("Título original", "Descripción original", TaskStatus.TODO,
+        return task(id, TaskStatus.TODO);
+    }
+
+    private Task task(Long id, TaskStatus status) {
+        Task task = new Task("Título original", "Descripción original", status,
                 TaskPriority.LOW, TODAY.plusDays(1));
         ReflectionTestUtils.setField(task, "id", id);
         return task;

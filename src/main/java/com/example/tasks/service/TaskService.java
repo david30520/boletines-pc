@@ -1,6 +1,7 @@
 package com.example.tasks.service;
 
 import com.example.tasks.domain.Task;
+import com.example.tasks.domain.TaskStatus;
 import com.example.tasks.dto.TaskRequest;
 import com.example.tasks.dto.TaskResponse;
 import com.example.tasks.exception.TaskNotFoundException;
@@ -24,8 +25,11 @@ public class TaskService {
         this.validator = validator;
     }
 
-    public List<TaskResponse> findAll() {
-        return repository.findAll(Sort.by("id")).stream()
+    public List<TaskResponse> findAll(TaskStatus status) {
+        List<Task> tasks = status == null
+                ? repository.findAll(Sort.by("id"))
+                : repository.findAllByStatus(status, Sort.by("id"));
+        return tasks.stream()
                 .map(TaskResponse::from)
                 .toList();
     }

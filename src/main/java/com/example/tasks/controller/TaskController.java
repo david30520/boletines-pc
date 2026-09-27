@@ -1,5 +1,6 @@
 package com.example.tasks.controller;
 
+import com.example.tasks.domain.TaskStatus;
 import com.example.tasks.dto.TaskRequest;
 import com.example.tasks.dto.TaskResponse;
 import com.example.tasks.service.TaskService;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -28,8 +30,8 @@ public class TaskController {
     }
 
     @GetMapping
-    public List<TaskResponse> findAll() {
-        return service.findAll();
+    public List<TaskResponse> findAll(@RequestParam(required = false) TaskStatus status) {
+        return service.findAll(status);
     }
 
     @GetMapping("/{id}")
