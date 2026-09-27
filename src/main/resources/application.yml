@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: tasks-api
+  datasource:
+    url: jdbc:h2:mem:tasks;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+  jackson:
+    deserialization:
+      fail-on-numbers-for-enums: true
+
+server:
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
