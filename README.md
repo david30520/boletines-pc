@@ -159,6 +159,17 @@ La clase `Task` representa la persistencia; los DTOs definen el contrato HTTP.
 Las operaciones de escritura se ejecutan en transacciones y las consultas usan
 transacciones de solo lectura. Hibernate implementa JPA y crea el esquema en H2.
 
+## Configuración del hook de Git
+
+El repositorio incluye un hook de pre-commit que ejecuta Spotless antes
+de realizar cada commit.
+
+Después de clonar el repositorio debe configurarse Git para utilizar los
+hooks versionados:
+
+```bash
+git config core.hooksPath .githooks
+```
 Referencias oficiales: [compatibilidad de Spring Boot 3.5 con Java y Maven](https://docs.spring.io/spring-boot/3.5/system-requirements.html),
 [personalización de Bean Validation](https://docs.spring.io/spring-boot/3.5/reference/io/validation.html)
 y [empaquetado de JAR ejecutables](https://docs.spring.io/spring-boot/3.5/maven-plugin/packaging.html).
