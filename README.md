@@ -48,7 +48,7 @@ también valida las peticiones cuando se invoca directamente, fuera del controla
 | Método | Ruta | Resultado |
 | --- | --- | --- |
 | `POST` | `/api/tasks` | `201 Created`, tarea creada y cabecera `Location`. |
-| `GET` | `/api/tasks` | `200 OK`, lista ordenada por `id` o `[]`; admite el filtro opcional `status`. |
+| `GET` | `/api/tasks` | `200 OK`, lista ordenada por `id` o `[]`; admite el filtro opcional `status` y `priority`, combinables entre sí. |
 | `GET` | `/api/tasks/{id}` | `200 OK` o `404 Not Found`. |
 | `PUT` | `/api/tasks/{id}` | `200 OK` o `404 Not Found`. |
 | `DELETE` | `/api/tasks/{id}` | `204 No Content` o `404 Not Found`. |
@@ -69,6 +69,11 @@ curl -i -X POST http://localhost:8080/api/tasks \
 curl -i http://localhost:8080/api/tasks
 curl -i 'http://localhost:8080/api/tasks?status=IN_PROGRESS'
 curl -i http://localhost:8080/api/tasks/1
+
+# Filtro de prioridad
+curl -i 'http://localhost:8080/api/tasks?priority=HIGH'
+curl -i 'http://localhost:8080/api/tasks?status=TODO&priority=HIGH'
+curl -i 'http://localhost:8080/api/tasks?priority=URGENT'
 
 # Actualizar
 curl -i -X PUT http://localhost:8080/api/tasks/1 \

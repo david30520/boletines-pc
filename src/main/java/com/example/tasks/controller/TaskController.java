@@ -1,8 +1,10 @@
 package com.example.tasks.controller;
 
+import com.example.tasks.domain.TaskPriority;
 import com.example.tasks.domain.TaskStatus;
 import com.example.tasks.dto.TaskRequest;
 import com.example.tasks.dto.TaskResponse;
+import com.example.tasks.exception.InvalidPriorityException;
 import com.example.tasks.service.TaskService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -31,8 +33,20 @@ public class TaskController {
   }
 
   @GetMapping
-  public List<TaskResponse> findAll(@RequestParam(required = false) TaskStatus status) {
-    return service.findAll(status);
+  public List<TaskResponse> findAll(
+      @RequestParam(required = false) TaskStatus status,
+      @RequestParam(required = false) String priority) {
+
+    TaskPriority parsedPriority = null;
+    if (priority != null) {
+      try {
+        parsedPriority = TaskPriority.valueOf(priority);
+      } catch (IllegalArgumentException exception) {
+        throw new InvalidPriorityException();
+      }
+    }
+
+    return service.findAll(status, parsedPriority);
   }
 
   @GetMapping("/{id}")

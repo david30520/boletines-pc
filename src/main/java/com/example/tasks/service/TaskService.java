@@ -1,6 +1,7 @@
 package com.example.tasks.service;
 
 import com.example.tasks.domain.Task;
+import com.example.tasks.domain.TaskPriority;
 import com.example.tasks.domain.TaskStatus;
 import com.example.tasks.dto.TaskRequest;
 import com.example.tasks.dto.TaskResponse;
@@ -25,11 +26,20 @@ public class TaskService {
     this.validator = validator;
   }
 
-  public List<TaskResponse> findAll(TaskStatus status) {
-    List<Task> tasks =
-        status == null
-            ? repository.findAll(Sort.by("id"))
-            : repository.findAllByStatus(status, Sort.by("id"));
+  public List<TaskResponse> findAll(TaskStatus status, TaskPriority priority) {
+    Sort sort = Sort.by("id");
+    List<Task> tasks;
+
+    if (status == null && priority == null) {
+      tasks = repository.findAll(sort);
+    } else if (priority == null) {
+      tasks = repository.findAllByStatus(status, sort);
+    } else if (status == null) {
+      tasks = repository.findAllByPriority(priority, sort);
+    } else {
+      tasks = repository.findAllByStatusAndPriority(status, priority, sort);
+    }
+
     return tasks.stream().map(TaskResponse::from).toList();
   }
 
