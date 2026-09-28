@@ -9,20 +9,13 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 public record TaskRequest(
-        @NotBlank(message = "El título es obligatorio")
+    @NotBlank(message = "El título es obligatorio")
         @Size(max = 120, message = "El título no puede superar 120 caracteres")
         String title,
-
-        @Size(max = 2000, message = "La descripción no puede superar 2000 caracteres")
+    @Size(max = 2000, message = "La descripción no puede superar 2000 caracteres")
         String description,
-
-        @NotNull(message = "El estado es obligatorio")
-        TaskStatus status,
-
-        @NotNull(message = "La prioridad es obligatoria")
-        TaskPriority priority,
-
-        @NotNull(message = "La fecha límite es obligatoria")
+    @NotNull(message = "El estado es obligatorio") TaskStatus status,
+    @NotNull(message = "La prioridad es obligatoria") TaskPriority priority,
+    @NotNull(message = "La fecha límite es obligatoria")
         @FutureOrPresent(message = "La fecha límite no puede estar en el pasado")
-        LocalDate dueDate) {
-}
+        LocalDate dueDate) {}

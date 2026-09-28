@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
-    List<Task> findAllByStatus(TaskStatus status, Sort sort);
+  List<Task> findAllByStatus(TaskStatus status, Sort sort);
 }

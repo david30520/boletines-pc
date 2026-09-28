@@ -23,38 +23,41 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/tasks")
 public class TaskController {
 
-    private final TaskService service;
+  private final TaskService service;
 
-    public TaskController(TaskService service) {
-        this.service = service;
-    }
+  public TaskController(TaskService service) {
+    this.service = service;
+  }
 
-    @GetMapping
-    public List<TaskResponse> findAll(@RequestParam(required = false) TaskStatus status) {
-        return service.findAll(status);
-    }
+  @GetMapping
+  public List<TaskResponse> findAll(@RequestParam(required = false) TaskStatus status) {
+    return service.findAll(status);
+  }
 
-    @GetMapping("/{id}")
-    public TaskResponse findById(@PathVariable Long id) {
-        return service.findById(id);
-    }
+  @GetMapping("/{id}")
+  public TaskResponse findById(@PathVariable Long id) {
+    return service.findById(id);
+  }
 
-    @PostMapping
-    public ResponseEntity<TaskResponse> create(@Valid @RequestBody TaskRequest request) {
-        TaskResponse task = service.create(request);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}").buildAndExpand(task.id()).toUri();
-        return ResponseEntity.created(location).body(task);
-    }
+  @PostMapping
+  public ResponseEntity<TaskResponse> create(@Valid @RequestBody TaskRequest request) {
+    TaskResponse task = service.create(request);
+    URI location =
+        ServletUriComponentsBuilder.fromCurrentRequest()
+            .path("/{id}")
+            .buildAndExpand(task.id())
+            .toUri();
+    return ResponseEntity.created(location).body(task);
+  }
 
-    @PutMapping("/{id}")
-    public TaskResponse update(@PathVariable Long id, @Valid @RequestBody TaskRequest request) {
-        return service.update(id, request);
-    }
+  @PutMapping("/{id}")
+  public TaskResponse update(@PathVariable Long id, @Valid @RequestBody TaskRequest request) {
+    return service.update(id, request);
+  }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
-    }
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(@PathVariable Long id) {
+    service.delete(id);
+    return ResponseEntity.noContent().build();
+  }
 }

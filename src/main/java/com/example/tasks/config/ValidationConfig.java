@@ -8,13 +8,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ValidationConfig {
 
-    @Bean
-    public Clock clock() {
-        return Clock.systemUTC();
-    }
+  @Bean
+  public Clock clock() {
+    return Clock.systemUTC();
+  }
 
-    @Bean
-    public ValidationConfigurationCustomizer validationClock(Clock clock) {
-        return configuration -> configuration.clockProvider(() -> clock);
-    }
+  @Bean
+  public ValidationConfigurationCustomizer validationClock(Clock clock) {
+    return configuration -> configuration.clockProvider(() -> clock);
+  }
 }
