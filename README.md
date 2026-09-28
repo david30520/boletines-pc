@@ -1,4 +1,4 @@
-# Tasks API
+# Servicio REST para administración de tareas
 
 Proyecto Maven con Java 21, Spring Boot 3.5.16, Spring Web, Bean Validation,
 Spring Data JPA/Hibernate y H2 en memoria.
