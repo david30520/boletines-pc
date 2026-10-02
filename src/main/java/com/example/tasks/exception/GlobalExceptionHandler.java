@@ -87,6 +87,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     return handleExceptionInternal(exception, problem, headers, status, request);
   }
 
+  @ExceptionHandler(InvalidPriorityException.class)
+  public ResponseEntity<Object> handleInvalidPriority(
+      InvalidPriorityException exception, WebRequest request) {
+    ProblemDetail problem =
+        problem(HttpStatus.BAD_REQUEST, "Prioridad no válida", exception.getMessage());
+    return handleExceptionInternal(
+        exception, problem, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Object> handleUnexpectedException(Exception exception, WebRequest request) {
     LOG.error("Error inesperado al procesar la petición", exception);
