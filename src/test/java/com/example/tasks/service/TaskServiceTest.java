@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.tasks.domain.Task;
@@ -38,6 +39,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -309,6 +314,47 @@ class TaskServiceTest {
 
     assertEquals(List.of(), result);
     verify(repository).findAllByPriority(TaskPriority.HIGH, Sort.by("id"));
+  }
+
+  @Test
+  void findPageWithoutFiltersUsesPageableAndPreservesLastPartialPage() {
+    Pageable pageable = PageRequest.of(1, 2, Sort.by("id"));
+    Task last = task(7L);
+    when(repository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(last), pageable, 3));
+
+    Page<TaskResponse> result = service.findPage(null, null, 1, 2);
+
+    assertAll(
+        () -> assertEquals(List.of(TaskResponse.from(last)), result.getContent()),
+        () -> assertEquals(pageable, result.getPageable()),
+        () -> assertEquals(2, result.getSize()),
+        () -> assertEquals(1, result.getNumberOfElements()),
+        () -> assertEquals(3, result.getTotalElements()),
+        () -> assertEquals(2, result.getTotalPages()));
+    verify(repository).findAll(pageable);
+    verifyNoMoreInteractions(repository);
+  }
+
+  @Test
+  void findPageCombinesFiltersAndPreservesOrderAndFilteredTotals() {
+    Pageable pageable = PageRequest.of(1, 2, Sort.by("id"));
+    Task first = task(7L, TaskStatus.IN_PROGRESS, TaskPriority.HIGH);
+    Task second = task(9L, TaskStatus.IN_PROGRESS, TaskPriority.HIGH);
+    when(repository.findAllByStatusAndPriority(TaskStatus.IN_PROGRESS, TaskPriority.HIGH, pageable))
+        .thenReturn(new PageImpl<>(List.of(first, second), pageable, 5));
+
+    Page<TaskResponse> result = service.findPage(TaskStatus.IN_PROGRESS, TaskPriority.HIGH, 1, 2);
+
+    assertAll(
+        () ->
+            assertEquals(
+                List.of(TaskResponse.from(first), TaskResponse.from(second)), result.getContent()),
+        () -> assertEquals(pageable, result.getPageable()),
+        () -> assertEquals(5, result.getTotalElements()),
+        () -> assertEquals(3, result.getTotalPages()));
+    verify(repository)
+        .findAllByStatusAndPriority(TaskStatus.IN_PROGRESS, TaskPriority.HIGH, pageable);
+    verifyNoMoreInteractions(repository);
   }
 
   @Test

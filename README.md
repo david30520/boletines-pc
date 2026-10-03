@@ -48,7 +48,7 @@ también valida las peticiones cuando se invoca directamente, fuera del controla
 | Método | Ruta | Resultado |
 | --- | --- | --- |
 | `POST` | `/api/tasks` | `201 Created`, tarea creada y cabecera `Location`. |
-| `GET` | `/api/tasks` | `200 OK`, lista ordenada por `id` o `[]`; admite el filtro opcional `status` y `priority`, combinables entre sí. |
+| `GET` | `/api/tasks` | `200 OK`, lista ordenada por `id` o `[]`; admite filtros `status` y `priority` combinables, y paginación opcional con `page` y `size`. |
 | `GET` | `/api/tasks/{id}` | `200 OK` o `404 Not Found`. |
 | `PUT` | `/api/tasks/{id}` | `200 OK` o `404 Not Found`. |
 | `DELETE` | `/api/tasks/{id}` | `204 No Content` o `404 Not Found`. |
@@ -114,6 +114,88 @@ curl -i 'http://localhost:8080/api/tasks?priority=URGENT'
 curl -i 'http://localhost:8080/api/tasks?priority='
 ```
 
+## Paginación opcional del listado
+
+`GET /api/tasks` devuelve un array JSON de tareas ordenadas por `id` ascendente,
+tanto con paginación como sin ella. Si no se envían `page` ni `size`, devuelve
+todas las coincidencias, conservando el comportamiento anterior, también cuando
+se filtra por `status`, por `priority` o por ambos.
+
+La presencia de cualquiera de los dos parámetros activa la paginación:
+
+| Parámetro | Valores admitidos | Valor si se omite y se activa la paginación |
+| --- | --- | --- |
+| `page` | Entero entre `0` y `2147483647`; la primera página es `0`. | `0` |
+| `size` | Entero entre `1` y `100`, ambos incluidos. | `20` |
+
+Los filtros se aplican antes de paginar y se combinan con AND. El total cuenta
+solo las tareas que cumplen los filtros. La paginación y el recuento se realizan
+en la base de datos mediante Spring Data; no se carga la lista completa para
+recortarla en memoria. Se mantiene el orden por `id` para recorrer páginas
+consecutivas sin solapamientos mientras no cambien los datos.
+
+```bash
+# Listado completo, sin paginación
+curl -i 'http://localhost:8080/api/tasks'
+curl -i 'http://localhost:8080/api/tasks?priority=HIGH'
+
+# Primera página de 20 tareas
+curl -i 'http://localhost:8080/api/tasks?page=0&size=20'
+
+# Segunda página con tamaño predeterminado 20
+curl -i 'http://localhost:8080/api/tasks?page=1'
+
+# Primera página con tamaño 10
+curl -i 'http://localhost:8080/api/tasks?size=10'
+
+# Paginación con cada filtro y con ambos
+curl -i 'http://localhost:8080/api/tasks?status=IN_PROGRESS&page=0&size=10'
+curl -i 'http://localhost:8080/api/tasks?priority=HIGH&page=0&size=10'
+curl -i 'http://localhost:8080/api/tasks?status=TODO&priority=HIGH&page=1&size=10'
+```
+
+Las respuestas paginadas añaden estas cabeceras; el cuerpo sigue siendo el array
+habitual de `TaskResponse`, sin un objeto envolvente:
+
+| Cabecera | Significado |
+| --- | --- |
+| `X-Page` | Índice solicitado, empezando por `0`. |
+| `X-Page-Size` | Tamaño efectivo de página, aunque se devuelvan menos tareas. |
+| `X-Total-Count` | Total de coincidencias antes de paginar. |
+| `X-Total-Pages` | Total de páginas para ese conjunto filtrado y tamaño. |
+
+Con 23 coincidencias, `page=1&size=10` devuelve las posiciones 11 a 20 y las
+cabeceras `X-Page: 1`, `X-Page-Size: 10`, `X-Total-Count: 23` y
+`X-Total-Pages: 3`. La última página (`page=2`) contiene 3 tareas. Una página fuera
+de rango devuelve `200 OK` y `[]`, conservando el índice solicitado y los totales
+reales. Si no hay coincidencias, ambos totales son `0`. Las peticiones sin
+paginación no incluyen estas cabeceras.
+
+Se rechazan con `400 Bad Request` los valores negativos, vacíos, no enteros,
+desbordados o fuera de los límites anteriores. Un parámetro vacío no se considera
+omitido y no recibe el valor predeterminado. Por ejemplo, `page=-1`, `size=0`,
+`size=101`, `page=`, `size=`, `page=abc`, `size=1.5` y `page=2147483648` son
+inválidos. El cuerpo `ProblemDetail` identifica el parámetro y su regla:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Paginación no válida",
+  "status": 400,
+  "detail": "El parámetro 'size' debe ser un número entero entre 1 y 100",
+  "instance": "/api/tasks"
+}
+```
+
+Las validaciones existentes de filtros siguen aplicándose con paginación:
+`priority=`, `priority=high` y `priority=URGENT` devuelven `400` con el error de
+prioridad habitual. Un estado desconocido también devuelve `400`.
+
+Para desplazamientos que superan el límite entero de JPA, el repositorio cuenta
+las coincidencias y, si la página contiene resultados, utiliza una consulta SQL
+limitada compatible con H2. Así se mantienen los mismos límites de parámetros y
+la respuesta vacía para páginas lejanas, sin desbordar el desplazamiento.
+
 ### Errores
 
 `@RestControllerAdvice` devuelve cuerpos `ProblemDetail` (`application/problem+json`).
@@ -164,11 +246,15 @@ Se comprueban las fechas pasadas y el límite de hoy; títulos ausentes, vacíos
 demasiado largos; descripciones demasiado largas; campos obligatorios; límites
 máximos permitidos; normalización del título; actualización sin cambiar el ID;
 rechazo de cambios inválidos sin alterar la entidad; consulta y borrado de recursos
-inexistentes; listado y filtrado por estado; y traducción de errores a respuestas HTTP.
+inexistentes; listado y filtros por estado y prioridad; paginación con las cuatro
+combinaciones de filtros, orden y metadatos; valores predeterminados y límites;
+primera página, intermedias, última incompleta, páginas vacías y fuera de rango;
+desplazamientos y totales grandes; y traducción de errores a respuestas HTTP.
 
 **Solo hay tests unitarios**: no se utilizan `@SpringBootTest`, `@DataJpaTest`,
 `@WebMvcTest`, contextos de Spring ni conexiones a bases de datos. Las pruebas del
 manejador de errores invocan sus métodos directamente con objetos de petición simulados.
+El controlador se prueba con MockMvc standalone y un servicio simulado.
 `mvn package` ejecuta estos mismos tests antes de generar el JAR.
 
 ## Estructura
@@ -185,6 +271,7 @@ src/main/java/com/example/tasks/
 └── service/        # Operaciones y límites transaccionales
 src/main/resources/application.yml
 src/test/java/com/example/tasks/
+├── controller/     # Contrato HTTP con MockMvc standalone
 ├── exception/      # Tests unitarios del manejo de errores
 └── service/        # Tests unitarios de reglas y operaciones
 ```
