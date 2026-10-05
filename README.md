@@ -128,6 +128,12 @@ La presencia de cualquiera de los dos parámetros activa la paginación:
 | `page` | Entero entre `0` y `2147483647`; la primera página es `0`. | `0` |
 | `size` | Entero entre `1` y `100`, ambos incluidos. | `20` |
 
+Además, el desplazamiento `page * size` no puede superar `2147483647`
+(`Integer.MAX_VALUE`), el límite portable de JPA. Se calcula con `long`, después
+de aplicar los valores predeterminados, para evitar desbordamientos. Por ejemplo,
+`page=2147483647&size=1` cumple el límite, pero `page=1073741824&size=2`
+devuelve `400 Bad Request`.
+
 Los filtros se aplican antes de paginar y se combinan con AND. El total cuenta
 solo las tareas que cumplen los filtros. La paginación y el recuento se realizan
 en la base de datos mediante Spring Data; no se carga la lista completa para
@@ -167,9 +173,9 @@ habitual de `TaskResponse`, sin un objeto envolvente:
 Con 23 coincidencias, `page=1&size=10` devuelve las posiciones 11 a 20 y las
 cabeceras `X-Page: 1`, `X-Page-Size: 10`, `X-Total-Count: 23` y
 `X-Total-Pages: 3`. La última página (`page=2`) contiene 3 tareas. Una página fuera
-de rango devuelve `200 OK` y `[]`, conservando el índice solicitado y los totales
-reales. Si no hay coincidencias, ambos totales son `0`. Las peticiones sin
-paginación no incluyen estas cabeceras.
+de rango, con un desplazamiento válido, devuelve `200 OK` y `[]`, conservando el
+índice solicitado y los totales reales. Si no hay coincidencias, ambos totales
+son `0`. Las peticiones sin paginación no incluyen estas cabeceras.
 
 Se rechazan con `400 Bad Request` los valores negativos, vacíos, no enteros,
 desbordados o fuera de los límites anteriores. Un parámetro vacío no se considera
@@ -191,10 +197,13 @@ Las validaciones existentes de filtros siguen aplicándose con paginación:
 `priority=`, `priority=high` y `priority=URGENT` devuelven `400` con el error de
 prioridad habitual. Un estado desconocido también devuelve `400`.
 
-Para desplazamientos que superan el límite entero de JPA, el repositorio cuenta
-las coincidencias y, si la página contiene resultados, utiliza una consulta SQL
-limitada compatible con H2. Así se mantienen los mismos límites de parámetros y
-la respuesta vacía para páginas lejanas, sin desbordar el desplazamiento.
+Las combinaciones cuyo desplazamiento supera `Integer.MAX_VALUE` se rechazan
+antes de consultar el repositorio, aunque no existan tareas. La respuesta utiliza
+el mismo `ProblemDetail` de paginación, con el detalle
+`La combinación de 'page' y 'size' debe cumplir page * size <= 2147483647`.
+La paginación utiliza exclusivamente `Pageable`, `PageRequest`, `Page` y los
+métodos paginados de Spring Data JPA, sin consultas SQL nativas ni rutas
+específicas de un motor de base de datos.
 
 ### Errores
 
@@ -249,7 +258,7 @@ rechazo de cambios inválidos sin alterar la entidad; consulta y borrado de recu
 inexistentes; listado y filtros por estado y prioridad; paginación con las cuatro
 combinaciones de filtros, orden y metadatos; valores predeterminados y límites;
 primera página, intermedias, última incompleta, páginas vacías y fuera de rango;
-desplazamientos y totales grandes; y traducción de errores a respuestas HTTP.
+y traducción de errores a respuestas HTTP.
 
 **Solo hay tests unitarios**: no se utilizan `@SpringBootTest`, `@DataJpaTest`,
 `@WebMvcTest`, contextos de Spring ni conexiones a bases de datos. Las pruebas del

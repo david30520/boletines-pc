@@ -2,6 +2,10 @@ package com.example.tasks.exception;
 
 public class InvalidPaginationException extends RuntimeException {
 
+  public InvalidPaginationException(String message) {
+    super(message);
+  }
+
   public InvalidPaginationException(String parameter, int minimum, int maximum) {
     super(
         "El parámetro '"

@@ -56,6 +56,11 @@ public class TaskController {
 
     int pageNumber = parsePaginationParameter(page, "page", 0, 0, Integer.MAX_VALUE);
     int pageSize = parsePaginationParameter(size, "size", 20, 1, 100);
+    long offset = (long) pageNumber * pageSize;
+    if (offset > Integer.MAX_VALUE) {
+      throw new InvalidPaginationException(
+          "La combinación de 'page' y 'size' debe cumplir page * size <= " + Integer.MAX_VALUE);
+    }
     Page<TaskResponse> result = service.findPage(status, parsedPriority, pageNumber, pageSize);
     // Page.getTotalPages() devuelve int y puede truncar totales muy grandes.
     long totalPages =
