@@ -10,6 +10,9 @@ import com.example.tasks.repository.TaskRepository;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +44,23 @@ public class TaskService {
     }
 
     return tasks.stream().map(TaskResponse::from).toList();
+  }
+
+  public Page<TaskResponse> findPage(TaskStatus status, TaskPriority priority, int page, int size) {
+    Pageable pageable = PageRequest.of(page, size, Sort.by("id"));
+    Page<Task> tasks;
+
+    if (status == null && priority == null) {
+      tasks = repository.findAll(pageable);
+    } else if (priority == null) {
+      tasks = repository.findAllByStatus(status, pageable);
+    } else if (status == null) {
+      tasks = repository.findAllByPriority(priority, pageable);
+    } else {
+      tasks = repository.findAllByStatusAndPriority(status, priority, pageable);
+    }
+
+    return tasks.map(TaskResponse::from);
   }
 
   public TaskResponse findById(Long id) {
