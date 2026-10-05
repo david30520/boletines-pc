@@ -1,5 +1,6 @@
 package com.example.tasks.domain;
 
+import com.example.tasks.exception.InvalidStatusTransitionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,6 +12,7 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
@@ -45,6 +47,9 @@ public class Task {
   @Column(nullable = false)
   private LocalDate dueDate;
 
+  // Solo tiene valor mientras la tarea está en DONE.
+  private Instant completedAt;
+
   protected Task() {
     // Constructor requerido por JPA.
   }
@@ -54,8 +59,12 @@ public class Task {
       String description,
       TaskStatus status,
       TaskPriority priority,
-      LocalDate dueDate) {
-    update(title, description, status, priority, dueDate);
+      LocalDate dueDate,
+      Instant now) {
+    // Al crear se admite cualquier estado inicial; las reglas de transición aplican a los cambios.
+    this.status = status;
+    this.completedAt = status == TaskStatus.DONE ? now : null;
+    assignFields(title, description, priority, dueDate);
   }
 
   public void update(
@@ -63,10 +72,28 @@ public class Task {
       String description,
       TaskStatus status,
       TaskPriority priority,
-      LocalDate dueDate) {
+      LocalDate dueDate,
+      Instant now) {
+    // Primero el estado: si la transición no es válida, la entidad queda intacta.
+    changeStatus(status, now);
+    assignFields(title, description, priority, dueDate);
+  }
+
+  public void changeStatus(TaskStatus target, Instant now) {
+    if (!status.canTransitionTo(target)) {
+      throw new InvalidStatusTransitionException(status, target);
+    }
+    if (status == target) {
+      return;
+    }
+    status = target;
+    completedAt = target == TaskStatus.DONE ? now : null;
+  }
+
+  private void assignFields(
+      String title, String description, TaskPriority priority, LocalDate dueDate) {
     this.title = title;
     this.description = description;
-    this.status = status;
     this.priority = priority;
     this.dueDate = dueDate;
   }
@@ -93,5 +120,9 @@ public class Task {
 
   public LocalDate getDueDate() {
     return dueDate;
+  }
+
+  public Instant getCompletedAt() {
+    return completedAt;
   }
 }

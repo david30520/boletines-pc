@@ -105,6 +105,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         exception, problem, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
   }
 
+  @ExceptionHandler(InvalidStatusTransitionException.class)
+  public ResponseEntity<Object> handleInvalidStatusTransition(
+      InvalidStatusTransitionException exception, WebRequest request) {
+    ProblemDetail problem =
+        problem(HttpStatus.CONFLICT, "Transición no válida", exception.getMessage());
+    return handleExceptionInternal(
+        exception, problem, new HttpHeaders(), HttpStatus.CONFLICT, request);
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Object> handleUnexpectedException(Exception exception, WebRequest request) {
     LOG.error("Error inesperado al procesar la petición", exception);

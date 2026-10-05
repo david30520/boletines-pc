@@ -5,10 +5,14 @@ import com.example.tasks.domain.TaskPriority;
 import com.example.tasks.domain.TaskStatus;
 import com.example.tasks.dto.TaskRequest;
 import com.example.tasks.dto.TaskResponse;
+import com.example.tasks.dto.TaskStatusRequest;
 import com.example.tasks.exception.TaskNotFoundException;
 import com.example.tasks.repository.TaskRepository;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,10 +27,12 @@ public class TaskService {
 
   private final TaskRepository repository;
   private final Validator validator;
+  private final Clock clock;
 
-  public TaskService(TaskRepository repository, Validator validator) {
+  public TaskService(TaskRepository repository, Validator validator, Clock clock) {
     this.repository = repository;
     this.validator = validator;
+    this.clock = clock;
   }
 
   public List<TaskResponse> findAll(TaskStatus status, TaskPriority priority) {
@@ -76,7 +82,8 @@ public class TaskService {
             request.description(),
             request.status(),
             request.priority(),
-            request.dueDate());
+            request.dueDate(),
+            now());
     return TaskResponse.from(repository.save(task));
   }
 
@@ -89,7 +96,17 @@ public class TaskService {
         request.description(),
         request.status(),
         request.priority(),
-        request.dueDate());
+        request.dueDate(),
+        now());
+    return TaskResponse.from(repository.save(task));
+  }
+
+  @Transactional
+  public TaskResponse changeStatus(Long id, TaskStatusRequest request) {
+    Task task = findTask(id);
+    validate(request);
+    // Solo cambia el estado: no se revalida la fecha límite, así una tarea vencida puede cerrarse.
+    task.changeStatus(request.status(), now());
     return TaskResponse.from(repository.save(task));
   }
 
@@ -103,7 +120,12 @@ public class TaskService {
     return repository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
   }
 
-  private void validate(TaskRequest request) {
+  private Instant now() {
+    // Sin fracciones: la base de datos no conserva toda la precisión y la respuesta variaría.
+    return clock.instant().truncatedTo(ChronoUnit.SECONDS);
+  }
+
+  private void validate(Object request) {
     // También protege las llamadas al servicio que no pasan por el controlador.
     var violations = validator.validate(request);
     if (!violations.isEmpty()) {
