@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,8 +15,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.tasks.domain.TaskPriority;
 import com.example.tasks.domain.TaskStatus;
 import com.example.tasks.dto.TaskResponse;
+import com.example.tasks.dto.TaskStatusRequest;
 import com.example.tasks.exception.GlobalExceptionHandler;
+import com.example.tasks.exception.InvalidStatusTransitionException;
+import com.example.tasks.exception.TaskNotFoundException;
 import com.example.tasks.service.TaskService;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -162,6 +167,80 @@ class TaskControllerTest {
     verifyNoInteractions(service);
   }
 
+  @Test
+  void patchStatusReturnsUpdatedTask() throws Exception {
+    Instant completedAt = Instant.parse("2026-09-21T12:00:00Z");
+    TaskResponse done =
+        new TaskResponse(
+            7L,
+            "Task 7",
+            "Description",
+            TaskStatus.DONE,
+            TaskPriority.HIGH,
+            LocalDate.of(2099, 12, 31),
+            completedAt);
+    when(service.changeStatus(7L, new TaskStatusRequest(TaskStatus.DONE))).thenReturn(done);
+
+    mvc.perform(
+            patch("/api/tasks/7/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"DONE\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(7))
+        .andExpect(jsonPath("$.status").value("DONE"))
+        .andExpect(jsonPath("$.completedAt").exists());
+
+    verify(service).changeStatus(7L, new TaskStatusRequest(TaskStatus.DONE));
+  }
+
+  @Test
+  void patchStatusWithInvalidTransitionReturns409() throws Exception {
+    when(service.changeStatus(7L, new TaskStatusRequest(TaskStatus.DONE)))
+        .thenThrow(new InvalidStatusTransitionException(TaskStatus.TODO, TaskStatus.DONE));
+
+    mvc.perform(
+            patch("/api/tasks/7/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"DONE\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.status").value(409))
+        .andExpect(jsonPath("$.title").value("Transición no válida"))
+        .andExpect(jsonPath("$.detail").value("No se puede pasar de TODO a DONE"));
+  }
+
+  @Test
+  void patchStatusOfMissingTaskReturns404() throws Exception {
+    when(service.changeStatus(99L, new TaskStatusRequest(TaskStatus.IN_PROGRESS)))
+        .thenThrow(new TaskNotFoundException(99L));
+
+    mvc.perform(
+            patch("/api/tasks/99/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"IN_PROGRESS\"}"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.title").value("Tarea no encontrada"));
+  }
+
+  @Test
+  void patchStatusWithoutStatusReturns400() throws Exception {
+    mvc.perform(patch("/api/tasks/7/status").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.title").value("Datos no válidos"))
+        .andExpect(jsonPath("$.errors.status").value("El estado es obligatorio"));
+
+    verifyNoInteractions(service);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"{\"status\":\"FINISHED\"}", "{\"status\":\"done\"}", "no es json"})
+  void patchStatusWithUnreadableBodyReturns400(String body) throws Exception {
+    mvc.perform(patch("/api/tasks/7/status").contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.title").value("JSON no válido"));
+
+    verifyNoInteractions(service);
+  }
+
   private TaskResponse task(int id) {
     return new TaskResponse(
         (long) id,
@@ -169,6 +248,7 @@ class TaskControllerTest {
         "Description",
         TaskStatus.IN_PROGRESS,
         TaskPriority.HIGH,
-        LocalDate.of(2099, 12, 31));
+        LocalDate.of(2099, 12, 31),
+        null);
   }
 }

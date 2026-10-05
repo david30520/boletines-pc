@@ -17,6 +17,8 @@ import com.example.tasks.domain.TaskPriority;
 import com.example.tasks.domain.TaskStatus;
 import com.example.tasks.dto.TaskRequest;
 import com.example.tasks.dto.TaskResponse;
+import com.example.tasks.dto.TaskStatusRequest;
+import com.example.tasks.exception.InvalidStatusTransitionException;
 import com.example.tasks.exception.TaskNotFoundException;
 import com.example.tasks.repository.TaskRepository;
 import jakarta.validation.ConstraintViolationException;
@@ -36,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -52,6 +55,7 @@ class TaskServiceTest {
   private static final Clock CLOCK =
       Clock.fixed(Instant.parse("2026-09-21T12:00:00Z"), ZoneOffset.UTC);
   private static final LocalDate TODAY = LocalDate.now(CLOCK);
+  private static final Instant NOW = CLOCK.instant();
   private static ValidatorFactory validatorFactory;
 
   @Mock private TaskRepository repository;
@@ -74,7 +78,7 @@ class TaskServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new TaskService(repository, validatorFactory.getValidator());
+    service = new TaskService(repository, validatorFactory.getValidator(), CLOCK);
   }
 
   @Test
@@ -177,7 +181,7 @@ class TaskServiceTest {
 
   @Test
   void updateReplacesFieldsAndKeepsId() {
-    Task existing = task(1L);
+    Task existing = task(1L, TaskStatus.IN_PROGRESS);
     when(repository.findById(1L)).thenReturn(Optional.of(existing));
     when(repository.save(existing)).thenReturn(existing);
     TaskRequest request =
@@ -186,7 +190,8 @@ class TaskServiceTest {
     TaskResponse result = service.update(1L, request);
 
     assertEquals(
-        new TaskResponse(1L, "Tarea actualizada", null, TaskStatus.DONE, TaskPriority.HIGH, TODAY),
+        new TaskResponse(
+            1L, "Tarea actualizada", null, TaskStatus.DONE, TaskPriority.HIGH, TODAY, NOW),
         result);
     assertEquals(result, TaskResponse.from(existing));
     verify(repository).save(existing);
@@ -215,7 +220,12 @@ class TaskServiceTest {
   void alreadyStoredOverdueTaskCanStillBeRead() {
     Task overdue =
         new Task(
-            "Tarea vencida", null, TaskStatus.IN_PROGRESS, TaskPriority.HIGH, TODAY.minusDays(5));
+            "Tarea vencida",
+            null,
+            TaskStatus.IN_PROGRESS,
+            TaskPriority.HIGH,
+            TODAY.minusDays(5),
+            NOW);
     ReflectionTestUtils.setField(overdue, "id", 7L);
     when(repository.findById(7L)).thenReturn(Optional.of(overdue));
 
@@ -358,6 +368,157 @@ class TaskServiceTest {
   }
 
   @Test
+  void createDoneTaskSetsCompletedAt() {
+    when(repository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    TaskResponse result =
+        service.create(new TaskRequest("Ya hecha", null, TaskStatus.DONE, TaskPriority.LOW, TODAY));
+
+    assertEquals(NOW, result.completedAt());
+  }
+
+  @Test
+  void createPendingTaskHasNoCompletedAt() {
+    when(repository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    TaskResponse result = service.create(validRequest());
+
+    assertNull(result.completedAt());
+  }
+
+  @Test
+  void updateRejectsInvalidTransitionWithoutChangingExistingTask() {
+    Task existing = task(1L, TaskStatus.TODO);
+    TaskResponse before = TaskResponse.from(existing);
+    when(repository.findById(1L)).thenReturn(Optional.of(existing));
+    TaskRequest request =
+        new TaskRequest("Otro título", "Otra", TaskStatus.DONE, TaskPriority.HIGH, TODAY);
+
+    InvalidStatusTransitionException exception =
+        assertThrows(InvalidStatusTransitionException.class, () -> service.update(1L, request));
+
+    assertEquals("No se puede pasar de TODO a DONE", exception.getMessage());
+    assertEquals(before, TaskResponse.from(existing));
+    verify(repository, never()).save(any(Task.class));
+  }
+
+  @Test
+  void updateKeepingSameStatusIsAllowed() {
+    Task existing = task(1L, TaskStatus.DONE);
+    when(repository.findById(1L)).thenReturn(Optional.of(existing));
+    when(repository.save(existing)).thenReturn(existing);
+    TaskRequest request =
+        new TaskRequest("Título editado", null, TaskStatus.DONE, TaskPriority.LOW, TODAY);
+
+    TaskResponse result = service.update(1L, request);
+
+    assertEquals("Título editado", result.title());
+    assertEquals(TaskStatus.DONE, result.status());
+    assertEquals(NOW, result.completedAt());
+  }
+
+  @ParameterizedTest(name = "{0} -> {1}")
+  @CsvSource({"TODO, IN_PROGRESS", "IN_PROGRESS, TODO", "IN_PROGRESS, DONE", "DONE, IN_PROGRESS"})
+  void changeStatusAppliesAllowedTransitions(TaskStatus from, TaskStatus to) {
+    Task existing = task(1L, from);
+    when(repository.findById(1L)).thenReturn(Optional.of(existing));
+    when(repository.save(existing)).thenReturn(existing);
+
+    TaskResponse result = service.changeStatus(1L, new TaskStatusRequest(to));
+
+    assertEquals(to, result.status());
+    verify(repository).save(existing);
+  }
+
+  @ParameterizedTest(name = "{0} -> {1}")
+  @CsvSource({"TODO, DONE", "DONE, TODO"})
+  void changeStatusRejectsForbiddenTransitionsWithoutSaving(TaskStatus from, TaskStatus to) {
+    Task existing = task(1L, from);
+    TaskResponse before = TaskResponse.from(existing);
+    when(repository.findById(1L)).thenReturn(Optional.of(existing));
+
+    InvalidStatusTransitionException exception =
+        assertThrows(
+            InvalidStatusTransitionException.class,
+            () -> service.changeStatus(1L, new TaskStatusRequest(to)));
+
+    assertEquals("No se puede pasar de " + from + " a " + to, exception.getMessage());
+    assertEquals(before, TaskResponse.from(existing));
+    verify(repository, never()).save(any(Task.class));
+  }
+
+  @Test
+  void changeStatusToSameStatusChangesNothing() {
+    Task existing = task(1L, TaskStatus.DONE);
+    ReflectionTestUtils.setField(existing, "completedAt", NOW.minusSeconds(3600));
+    TaskResponse before = TaskResponse.from(existing);
+    when(repository.findById(1L)).thenReturn(Optional.of(existing));
+    when(repository.save(existing)).thenReturn(existing);
+
+    TaskResponse result = service.changeStatus(1L, new TaskStatusRequest(TaskStatus.DONE));
+
+    assertEquals(before, result);
+  }
+
+  @Test
+  void changeStatusToDoneSetsCompletedAtAndReopeningClearsIt() {
+    Task existing = task(1L, TaskStatus.IN_PROGRESS);
+    when(repository.findById(1L)).thenReturn(Optional.of(existing));
+    when(repository.save(existing)).thenReturn(existing);
+
+    TaskResponse done = service.changeStatus(1L, new TaskStatusRequest(TaskStatus.DONE));
+    TaskResponse reopened = service.changeStatus(1L, new TaskStatusRequest(TaskStatus.IN_PROGRESS));
+
+    assertEquals(NOW, done.completedAt());
+    assertNull(reopened.completedAt());
+  }
+
+  @Test
+  void overdueTaskCanBeMarkedAsDoneWithoutChangingDueDate() {
+    Task overdue =
+        new Task(
+            "Tarea vencida",
+            null,
+            TaskStatus.IN_PROGRESS,
+            TaskPriority.HIGH,
+            TODAY.minusDays(5),
+            NOW);
+    when(repository.findById(7L)).thenReturn(Optional.of(overdue));
+    when(repository.save(overdue)).thenReturn(overdue);
+
+    TaskResponse result = service.changeStatus(7L, new TaskStatusRequest(TaskStatus.DONE));
+
+    assertEquals(TaskStatus.DONE, result.status());
+    assertEquals(TODAY.minusDays(5), result.dueDate());
+  }
+
+  @Test
+  void changeStatusRejectsMissingStatusWithoutSaving() {
+    when(repository.findById(1L)).thenReturn(Optional.of(task(1L)));
+
+    ConstraintViolationException exception =
+        assertThrows(
+            ConstraintViolationException.class,
+            () -> service.changeStatus(1L, new TaskStatusRequest(null)));
+
+    assertTrue(
+        exception.getConstraintViolations().stream()
+            .anyMatch(violation -> violation.getPropertyPath().toString().equals("status")));
+    verify(repository, never()).save(any(Task.class));
+  }
+
+  @Test
+  void changeStatusOfMissingTaskThrowsNotFound() {
+    when(repository.findById(99L)).thenReturn(Optional.empty());
+
+    assertThrows(
+        TaskNotFoundException.class,
+        () -> service.changeStatus(99L, new TaskStatusRequest(TaskStatus.IN_PROGRESS)));
+
+    verify(repository, never()).save(any(Task.class));
+  }
+
+  @Test
   void deleteRemovesExistingTask() {
     Task existing = task(1L);
     when(repository.findById(1L)).thenReturn(Optional.of(existing));
@@ -428,14 +589,20 @@ class TaskServiceTest {
   private Task task(Long id, TaskStatus status) {
     Task task =
         new Task(
-            "Título original", "Descripción original", status, TaskPriority.LOW, TODAY.plusDays(1));
+            "Título original",
+            "Descripción original",
+            status,
+            TaskPriority.LOW,
+            TODAY.plusDays(1),
+            NOW);
     ReflectionTestUtils.setField(task, "id", id);
     return task;
   }
 
   private Task task(Long id, TaskStatus status, TaskPriority priority) {
     Task task =
-        new Task("Título original", "Descripción original", status, priority, TODAY.plusDays(1));
+        new Task(
+            "Título original", "Descripción original", status, priority, TODAY.plusDays(1), NOW);
     ReflectionTestUtils.setField(task, "id", id);
     return task;
   }

@@ -32,12 +32,35 @@ H2 crea las tablas al arrancar; los datos se pierden al detener el proceso.
 | `status` | Enum | Obligatorio: `TODO`, `IN_PROGRESS` o `DONE`. |
 | `priority` | Enum | Obligatoria: `LOW`, `MEDIUM` o `HIGH`. |
 | `dueDate` | Fecha `AAAA-MM-DD` | Obligatoria; hoy o una fecha futura, tomando UTC como referencia. |
+| `completedAt` | Instante UTC ISO-8601 | Solo lectura. Momento (sin fracciones de segundo) en que la tarea pasó a `DONE`; `null` en otro estado. |
 
 Estas reglas se aplican tanto al crear como al actualizar. `PUT` sustituye todos
 los campos editables y mantiene el identificador; no crea una tarea inexistente.
 Si una tarea ya ha vencido, sigue pudiendo consultarse y borrarse. Para modificarla,
-debe enviarse una fecha límite válida. No hay restricciones adicionales de transición
-entre estados.
+debe enviarse una fecha límite válida.
+
+### Flujo de estados
+
+Al crear una tarea se admite cualquier estado inicial. A partir de ahí, los cambios de
+estado, tanto con `PUT` como con `PATCH /api/tasks/{id}/status`, siguen este flujo:
+
+```text
+TODO ⇄ IN_PROGRESS ⇄ DONE
+```
+
+| Desde \ Hacia | `TODO` | `IN_PROGRESS` | `DONE` |
+| --- | --- | --- | --- |
+| `TODO` | Sin cambios | Permitida | **409** |
+| `IN_PROGRESS` | Permitida | Sin cambios | Permitida |
+| `DONE` | **409** | Permitida (reabrir) | Sin cambios |
+
+Enviar el mismo estado que ya tiene la tarea no es un error y no modifica nada.
+Al pasar a `DONE` se guarda `completedAt`; al reabrir la tarea vuelve a `null`.
+Una transición no válida devuelve `409 Conflict` y la tarea no se modifica.
+
+`PATCH /api/tasks/{id}/status` solo cambia el estado: no exige reenviar el resto de
+campos ni revalida la fecha límite. Así, una tarea vencida puede marcarse como `DONE`
+sin cambiar su `dueDate`.
 
 La validación temporal se declara en el DTO de entrada, no en la entidad persistida:
 el paso del tiempo no convierte en inválidos los registros almacenados. El servicio
@@ -50,7 +73,8 @@ también valida las peticiones cuando se invoca directamente, fuera del controla
 | `POST` | `/api/tasks` | `201 Created`, tarea creada y cabecera `Location`. |
 | `GET` | `/api/tasks` | `200 OK`, lista ordenada por `id` o `[]`; admite filtros `status` y `priority` combinables, y paginación opcional con `page` y `size`. |
 | `GET` | `/api/tasks/{id}` | `200 OK` o `404 Not Found`. |
-| `PUT` | `/api/tasks/{id}` | `200 OK` o `404 Not Found`. |
+| `PUT` | `/api/tasks/{id}` | `200 OK`, `404 Not Found` o `409 Conflict` si el cambio de estado no está permitido. |
+| `PATCH` | `/api/tasks/{id}/status` | Cuerpo `{"status": "..."}`. `200 OK`, `400 Bad Request`, `404 Not Found` o `409 Conflict`. |
 | `DELETE` | `/api/tasks/{id}` | `204 No Content` o `404 Not Found`. |
 
 
@@ -79,7 +103,13 @@ curl -i 'http://localhost:8080/api/tasks?status=TODO&priority=HIGH'
 # Actualizar
 curl -i -X PUT http://localhost:8080/api/tasks/1 \
   -H 'Content-Type: application/json' \
-  -d '{"title":"Preparar entrega","description":"Entrega revisada","status":"DONE","priority":"MEDIUM","dueDate":"2099-12-31"}'
+  -d '{"title":"Preparar entrega","description":"Entrega revisada","status":"IN_PROGRESS","priority":"MEDIUM","dueDate":"2099-12-31"}'
+
+# Cambiar solo el estado (IN_PROGRESS -> DONE) y reabrir (DONE -> IN_PROGRESS)
+curl -i -X PATCH http://localhost:8080/api/tasks/1/status \
+  -H 'Content-Type: application/json' -d '{"status":"DONE"}'
+curl -i -X PATCH http://localhost:8080/api/tasks/1/status \
+  -H 'Content-Type: application/json' -d '{"status":"IN_PROGRESS"}'
 
 # Borrar y comprobar el 404
 curl -i -X DELETE http://localhost:8080/api/tasks/1
@@ -236,6 +266,18 @@ enviar `"dueDate":"2000-01-01"` genera:
 }
 ```
 
+Un cambio de estado no permitido devuelve `409`:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Transición no válida",
+  "status": 409,
+  "detail": "No se puede pasar de TODO a DONE",
+  "instance": "/api/tasks/1/status"
+}
+```
+
 El JSON mal formado, las fechas inválidas, los enums desconocidos o numéricos y los
 identificadores no numéricos también devuelven `400`. Los fallos inesperados se
 registran en el servidor y devuelven `500` con un mensaje genérico, sin trazas en la respuesta.
@@ -258,7 +300,9 @@ rechazo de cambios inválidos sin alterar la entidad; consulta y borrado de recu
 inexistentes; listado y filtros por estado y prioridad; paginación con las cuatro
 combinaciones de filtros, orden y metadatos; valores predeterminados y límites;
 primera página, intermedias, última incompleta, páginas vacías y fuera de rango;
-y traducción de errores a respuestas HTTP.
+las nueve combinaciones del flujo de estados; transiciones permitidas y rechazadas
+con `PUT` y `PATCH` sin alterar la entidad; idempotencia del mismo estado; gestión de
+`completedAt`; cierre de tareas vencidas; y traducción de errores a respuestas HTTP.
 
 **Solo hay tests unitarios**: no se utilizan `@SpringBootTest`, `@DataJpaTest`,
 `@WebMvcTest`, contextos de Spring ni conexiones a bases de datos. Las pruebas del
@@ -281,6 +325,7 @@ src/main/java/com/example/tasks/
 src/main/resources/application.yml
 src/test/java/com/example/tasks/
 ├── controller/     # Contrato HTTP con MockMvc standalone
+├── domain/         # Flujo de estados de TaskStatus
 ├── exception/      # Tests unitarios del manejo de errores
 └── service/        # Tests unitarios de reglas y operaciones
 ```

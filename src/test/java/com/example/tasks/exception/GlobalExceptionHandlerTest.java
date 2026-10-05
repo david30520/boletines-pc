@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import com.example.tasks.controller.TaskController;
+import com.example.tasks.domain.TaskStatus;
 import com.example.tasks.dto.TaskRequest;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -46,6 +47,19 @@ class GlobalExceptionHandlerTest {
     assertEquals("Tarea no encontrada", body.getTitle());
     assertEquals("No existe la tarea con id 99", body.getDetail());
     assertFalse(body.toString().contains("stackTrace"));
+  }
+
+  @Test
+  void invalidStatusTransitionReturns409WithHelpfulDetail() {
+    ResponseEntity<Object> response =
+        handler.handleInvalidStatusTransition(
+            new InvalidStatusTransitionException(TaskStatus.TODO, TaskStatus.DONE), request);
+
+    ProblemDetail body = assertInstanceOf(ProblemDetail.class, response.getBody());
+    assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+    assertEquals(409, body.getStatus());
+    assertEquals("Transición no válida", body.getTitle());
+    assertEquals("No se puede pasar de TODO a DONE", body.getDetail());
   }
 
   @Test
