@@ -42,7 +42,7 @@ public class Task {
   @Column(nullable = false, length = 20)
   private TaskPriority priority;
 
-  // La regla temporal se valida al recibir cambios: una tarea guardada puede vencer.
+  // La regla temporal se valida al recibir cambios: una tarea que ha sido guardada puede vencer.
   @NotNull(message = "La fecha límite es obligatoria")
   @Column(nullable = false)
   private LocalDate dueDate;
