@@ -93,6 +93,62 @@ docker compose down -v
 El siguiente `docker compose up -d` inicializará una base de datos vacía con los
 valores de `.env`.
 
+## Levantar el proyecto con Dev Container
+
+Requisitos en el equipo: Docker en ejecución, Visual Studio Code y la
+[extensión Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers).
+La configuración de `.devcontainer/devcontainer.json` proporciona Java 21, Maven
+y Docker dentro del contenedor de desarrollo.
+
+### Abrir el entorno
+
+1. Abre la carpeta raíz del repositorio en VS Code.
+2. Abre la paleta de comandos (`F1`) y ejecuta **Dev Containers: Reopen in Container**.
+3. Espera a que termine la creación y preparación del entorno. La primera vez se
+   descargan la imagen, las herramientas y las dependencias de Maven, por lo que
+   necesitas conexión a Internet.
+4. Revisa `.env`: la preparación lo copia de `.env.example` si todavía no existe.
+   Ajusta `POSTGRES_DB`, `POSTGRES_USER` y `POSTGRES_PASSWORD` antes de arrancar,
+   como se explica en [Configurar la base de datos](#configurar-la-base-de-datos).
+
+### Arrancar la API y PostgreSQL
+
+Abre una terminal integrada de VS Code dentro del Dev Container y ejecuta desde
+la raíz del repositorio:
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+La preparación del entorno descarga las dependencias; el comando anterior
+levanta los servicios `api` y `db`. Para seguir el arranque:
+
+```bash
+docker compose logs -f api db
+```
+
+La configuración solicita el reenvío de los puertos `8080` y `5432` al equipo
+local. Abre `http://localhost:8080/api/tasks` para acceder a la API y
+`http://localhost:8080/actuator/health` para comprobar su estado. Si VS Code
+asigna otro puerto local, consulta la dirección en la pestaña **Puertos**.
+
+Desde la misma terminal puedes ejecutar las pruebas con las herramientas del entorno:
+
+```bash
+mvn test
+```
+
+Tras cambiar el código, ejecuta `docker compose up -d --build` para actualizar la
+API. Para detener los servicios conservando los datos, ejecuta
+`docker compose down` dentro del Dev Container; `docker compose up -d` vuelve a
+levantarlos con el volumen existente.
+
+Este entorno usa Docker dentro del contenedor de desarrollo, con su propio motor
+y sus propios volúmenes. Ejecuta los comandos de Compose desde su terminal para
+gestionar esas instancias. La persistencia de PostgreSQL sigue las reglas de
+[Persistencia y parada](#persistencia-y-parada).
+
 ## Modelo y reglas
 
 | Campo JSON    | Tipo                  | Regla                                                                                                     |
@@ -360,7 +416,8 @@ registran en el servidor y devuelven `500` con un mensaje genérico, sin trazas 
 
 ## Tests unitarios
 
-Para ejecutar los tests fuera de Docker se necesitan JDK 21 y Maven 3.6.3 o posterior:
+Puedes ejecutar los tests desde la terminal del Dev Container. Para ejecutarlos
+directamente en tu equipo se necesitan JDK 21 y Maven 3.6.3 o posterior:
 
 ```bash
 mvn test
