@@ -22,5 +22,5 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
   Page<Task> findAllByPriority(TaskPriority priority, Pageable pageable);
 
   Page<Task> findAllByStatusAndPriority(
-      TaskStatus status, TaskPriority priority, Pageable pageable);
+        TaskStatus status, TaskPriority priority, Pageable pageable);
 }
