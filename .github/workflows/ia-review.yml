@@ -1,0 +1,64 @@
+name: Revisión con IA
+
+on:
+  pull_request:
+
+concurrency:
+  group: ia-review-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write # publicar el comentario en el PR
+
+jobs:
+  resumen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      OLLAMA_MODEL: gpt-oss:120b # nombre exacto devuelto por /api/tags
+    steps:
+      - name: Resumir el PR con IA
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          set +e
+          ok=1
+
+          # Cambios del PR (se recorta para no pasarse del contexto del modelo)
+          gh pr diff "$PR_NUMBER" > full.diff || ok=0
+          head -c 60000 full.diff > diff.txt
+          [ -s diff.txt ] || ok=0
+
+          # Petición al modelo
+          if [ "$ok" = 1 ]; then
+            jq -n --arg model "$OLLAMA_MODEL" --rawfile diff diff.txt '{
+              model: $model,
+              stream: false,
+              messages: [
+                {role: "system", content: "Eres un revisor de código. Responde siempre en español y en Markdown."},
+                {role: "user", content: ("Resume en lenguaje natural qué cambios introduce este Pull Request y señala, si los hay, posibles problemas o mejoras.\n\n" + $diff)}
+              ]
+            }' > req.json
+
+            curl --silent --show-error --fail --max-time 180 \
+              https://ollama.com/api/chat \
+              -H "Authorization: Bearer $OLLAMA_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d @req.json -o resp.json || ok=0
+          fi
+
+          # Respuesta del modelo (vacía = error)
+          if [ "$ok" = 1 ]; then
+            jq -er '.message.content | select(length > 0)' resp.json > review.md || ok=0
+          fi
+
+          if [ "$ok" = 0 ]; then
+            echo "La IA ha fallado" > review.md
+          fi
+
+          # Un único comentario que se actualiza en cada push
+          gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file review.md
