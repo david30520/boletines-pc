@@ -11,7 +11,7 @@ class TaskStatusTest {
   @CsvSource({
     "TODO, TODO, true",
     "TODO, IN_PROGRESS, true",
-    "TODO, DONE, false",
+    "TODO, DONE, false", // arreglado
     "IN_PROGRESS, TODO, true",
     "IN_PROGRESS, IN_PROGRESS, true",
     "IN_PROGRESS, DONE, true",
