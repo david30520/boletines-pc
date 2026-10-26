@@ -1,0 +1,54 @@
+name: Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # permite relanzarlo a mano desde Actions
+
+permissions:
+  contents: read # checkout
+  pages: write # publicar en GitHub Pages
+  id-token: write # verificar que el despliegue sale de este repositorio
+
+# Una sola publicación a la vez; si llegan dos pushes seguidos, la segunda espera
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r docs/requirements.txt
+
+      - name: Generar la web
+        run: python docs/generar_site.py
+
+      - uses: actions/configure-pages@v6
+
+      - name: Subir la web como artefacto de Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
