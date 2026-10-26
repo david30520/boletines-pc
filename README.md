@@ -1,5 +1,7 @@
 # Servicio REST para administración de tareas
 
+[![CI](https://github.com/david30520/boletines-pc/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/david30520/boletines-pc/actions/workflows/ci.yml)
+
 Proyecto Maven con Java 21, Spring Boot 3.5.16, Spring Web, Bean Validation,
 Spring Data JPA/Hibernate y PostgreSQL.
 
