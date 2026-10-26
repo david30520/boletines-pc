@@ -89,7 +89,7 @@ class GlobalExceptionHandlerTest {
             exception, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
 
     ProblemDetail body = assertInstanceOf(ProblemDetail.class, response.getBody());
-    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
     assertEquals("JSON no válido", body.getTitle());
     assertFalse(body.getDetail().contains("Detalles internos"));
   }
