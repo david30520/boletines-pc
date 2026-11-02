@@ -151,6 +151,112 @@ y sus propios volúmenes. Ejecuta los comandos de Compose desde su terminal para
 gestionar esas instancias. La persistencia de PostgreSQL sigue las reglas de
 [Persistencia y parada](#persistencia-y-parada).
 
+## Despliegue con Ansible
+
+La aplicación se despliega con Ansible sobre una flota de tres "máquinas" que en
+este proyecto son contenedores con SSH: `app1` y `app2` ejecutan la API y `db1`
+ejecuta PostgreSQL. Todo lo necesario está en `deploy/`:
+
+| Fichero                                  | Contenido                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------- |
+| `deploy/requirements.yml`                | Collection `community.docker` 3.7.0.                                |
+| `deploy/servidores/docker-compose.yml`   | Flota de máquinas destino (`app1`, `app2`, `db1`).                  |
+| `deploy/inventory.ini`                   | Inventario agrupado por rol: `app`, `db` y `servidores`.            |
+| `deploy/deploy.yml`                      | Playbook: Docker en la flota, PostgreSQL en `db` y la API en `app`. |
+| `deploy/group_vars/servidores/vault.yml` | Credenciales cifradas con Ansible Vault.                            |
+
+### Desplegar a mano
+
+Requisitos: Ansible 2.16.x, `sshpass` y Docker.
+
+```bash
+ansible-galaxy collection install -r deploy/requirements.yml
+docker compose -f deploy/servidores/docker-compose.yml up -d
+
+ansible-playbook -i deploy/inventory.ini deploy/deploy.yml \
+  --ask-vault-pass --extra-vars "version_app=1.2.0"
+```
+
+La API queda disponible en `http://localhost:8081` (`app1`) y
+`http://localhost:8082` (`app2`), y `/actuator/info` muestra la versión desplegada.
+Para volver a una versión anterior basta con relanzar el playbook con otro
+`version_app`. Nunca se despliega `latest`.
+
+### Despliegue continuo
+
+Al subir una etiqueta `vX.Y.Z`, el workflow `release.yml` publica la imagen en
+GHCR (job `publish`) y, tras la aprobación manual del entorno `produccion`,
+ejecuta el playbook desde un runner autoalojado (job `deploy`).
+
+```mermaid
+flowchart LR
+    dev(["Desarrollador"])
+
+    subgraph GH["GitHub (la nube)"]
+        repo["Repositorio<br/>david30520/boletines-pc"]
+        publish["Job publish<br/>runner de GitHub (ubuntu-latest)"]
+        deployjob["Job deploy<br/>runs-on: self-hosted"]
+        env{{"Entorno produccion<br/>Required reviewer<br/>secret VAULT_PASS"}}
+        ghcr[("GHCR<br/>ghcr.io/david30520/boletines-pc:X.Y.Z")]
+    end
+
+    hub[("Docker Hub<br/>postgres:16")]
+
+    subgraph PC["Ordenador anfitrión"]
+        runner["Runner autoalojado<br/>actions-runner/run.sh"]
+        ansible["Ansible (controlador)<br/>ansible-playbook deploy.yml"]
+
+        subgraph DOCKER["Docker del anfitrión (deploy/servidores/docker-compose.yml)"]
+            subgraph APP1["Contenedor app1 · SSH 2223→22 · HTTP 8081→8080"]
+                d1["dockerd"] --> api1["tareas-api :8080<br/>network_mode: host"]
+            end
+            subgraph APP2["Contenedor app2 · SSH 2224→22 · HTTP 8082→8080"]
+                d2["dockerd"] --> api2["tareas-api :8080<br/>network_mode: host"]
+            end
+            subgraph DB1["Contenedor db1 · SSH 2225→22"]
+                d3["dockerd"] --> pg[("tareas-db :5432<br/>PostgreSQL 16<br/>network_mode: host")]
+            end
+        end
+    end
+
+    dev -- "1. git push del tag (HTTPS)" --> repo
+    repo -- "2. dispara release.yml" --> publish
+    publish -- "3. docker push (HTTPS)" --> ghcr
+    deployjob -.->|"4. espera la aprobación"| env
+    runner -- "5. recoge el job deploy (HTTPS, lo inicia el runner)" --> deployjob
+    runner -- "6. ejecuta con VAULT_PASS" --> ansible
+    ansible -- "7. SSH :2223" --> APP1
+    ansible -- "7. SSH :2224" --> APP2
+    ansible -- "7. SSH :2225" --> DB1
+    d3 -- "8. docker pull (HTTPS)" --> hub
+    d1 -- "9. docker pull (HTTPS)" --> ghcr
+    d2 -- "9. docker pull (HTTPS)" --> ghcr
+    api1 -- "10. JDBC :5432" --> pg
+    api2 -- "10. JDBC :5432" --> pg
+```
+
+Pasos desde que se sube una etiqueta hasta que la API queda en marcha:
+
+1. El desarrollador hace `git push origin vX.Y.Z` al repositorio por HTTPS.
+2. La etiqueta dispara el workflow `release.yml` en GitHub Actions.
+3. El job `publish` se ejecuta en un runner de GitHub, construye la imagen y la
+   publica en GHCR con los tags `X.Y.Z`, `X.Y`, `X` y `sha-…`.
+4. El job `deploy` queda en pausa hasta que un reviewer aprueba el entorno
+   `produccion`, que guarda el secret `VAULT_PASS`.
+5. El runner autoalojado, que consulta GitHub por HTTPS (la conexión la inicia
+   el runner, no GitHub), recoge el job `deploy` con el código de la etiqueta.
+6. El runner instala la collection y ejecuta `ansible-playbook` con la
+   contraseña del Vault en un fichero temporal y `version_app=X.Y.Z`.
+7. Ansible se conecta por SSH a `app1`, `app2` y `db1` a través de los puertos
+   `2223`, `2224` y `2225` del anfitrión, e instala y arranca Docker en cada uno.
+8. En `db1`, el Docker interno descarga `postgres:16` de Docker Hub y arranca
+   la base de datos.
+9. En `app1` y `app2`, el Docker interno hace login en GHCR, descarga la imagen
+   `X.Y.Z` y arranca la API, recreando el contenedor si la versión ha cambiado.
+10. Cada réplica se conecta a PostgreSQL en `db1:5432`. Ansible termina con un
+    smoke test a `/actuator/health` en cada réplica y la API queda accesible desde
+    el anfitrión en `localhost:8081` y `localhost:8082`.
+
 ## Modelo y reglas
 
 | Campo JSON    | Tipo                  | Regla                                                                                                     |
