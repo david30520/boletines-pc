@@ -104,7 +104,7 @@ Además, un push a una rama sin PR abierto no lo dispara.
 
 Esta parte corresponde al commit [b6b9a09](https://github.com/david30520/boletines-pc/commit/b6b9a0960d0759b51a367c37c478d5f4f5bd7d81), que es el commit que *squash and merge* genera al fusionar el PR.
 
-![pull request con el check en verde](./pr12-check-verde.png)
+![pull request con el check en verde](./imagenes/pr12-check-verde.png)
 
 ### Parte B
 
@@ -123,7 +123,7 @@ El commit [cbacc18](https://github.com/david30520/boletines-pc/commit/cbacc18f9e
 
 En este punto el fallo es intencionado y por tanto al pasar los tests obtenemos un error:
 
-![Parte B: error de aserción en TaskStatusTest](./parte-b-error-test.png)
+![Parte B: error de aserción en TaskStatusTest](./imagenes/parte-b-error-test.png)
 
 **PR y primera ejecución del CI**
 
@@ -131,7 +131,7 @@ Tras subir la rama, se abrió el [PR #13](https://github.com/david30520/boletine
 
 El resultado es un check rojo causado por el fallo de `TaskStatusTest`:
 
-![Parte B: PR con el check fallido](./parte-b-pr-rojo.png)
+![Parte B: PR con el check fallido](./imagenes/parte-b-pr-rojo.png)
 
 **Corrección y segunda ejecución**
 
@@ -143,7 +143,7 @@ El commit [6211c34](https://github.com/david30520/boletines-pc/commit/6211c3462b
 
 Al hacer push a la misma rama, el workflow se ejecutó de nuevo en el mismo PR y el check del CI pasó a verde:
 
-![Parte B: mismo PR con el check correcto tras la corrección](./parte-b-pr-verde.png)
+![Parte B: mismo PR con el check correcto tras la corrección](./imagenes/parte-b-pr-verde.png)
 
 Como el cambio neto de ambos commits es una sola línea (el comentario), el PR se pudo fusionar en `main` mediante *squash and merge*. Esta parte corresponde al commit [ac5c674](https://github.com/david30520/boletines-pc/commit/ac5c6746d3f7b9c727bf1a5c090a203ec06db087), que es el que genera la fusión; los dos commits de la rama son [cbacc18](https://github.com/david30520/boletines-pc/commit/cbacc18f9e6e7cd118be742d876f5a6ec714a595) y [6211c34](https://github.com/david30520/boletines-pc/commit/6211c3462b81749e4d766fa33f864d925022793b).
 
@@ -151,11 +151,11 @@ Como el cambio neto de ambos commits es una sola línea (el comentario), el PR s
 
 Se creó la rama `feat/ci-parte-c` y se reestructuró el workflow `ci.yml` en tres jobs encadenados con `needs`: `lint`, `test` y `package`. Al abrir el [Pull Request #14](https://github.com/david30520/boletines-pc/pull/14), los tres jobs se ejecutaron en orden y terminaron en verde. El job `test` publicó el informe de resultados JUnit y `package` subió el JAR como artefacto `app-jar`.
 
-![jobs del workflow en verde](./parte-c-jobs-verde.png)
+![jobs del workflow en verde](./imagenes/parte-c-jobs-verde.png)
 
-![informe de tests](./parte-c-informe-tests.png)
+![informe de tests](./imagenes/parte-c-informe-tests.png)
 
-![artefacto app-jar](./parte-c-jar.png)
+![artefacto app-jar](./imagenes/parte-c-jar.png)
 
 Cada job tiene una responsabilidad:
 
@@ -167,7 +167,7 @@ Cada job tiene una responsabilidad:
 
 Para comprobar que `lint` frena el pipeline, se desordenó una clase y se subió con `git commit --no-verify`, saltándose el hook de pre-commit. El job `lint` falló y `test` y `package` ni siquiera se ejecutaron, porque dependen de él mediante `needs`.
 
-![lint en rojo y el resto sin ejecutarse](./parte-c-lint-rojo.png)
+![lint en rojo y el resto sin ejecutarse](./imagenes/parte-c-lint-rojo.png)
 
 Después se corrigió el formato con `mvn spotless:apply` y se hizo push a la misma rama, con lo que el pipeline volvió a ejecutarse completo en verde.
 
@@ -193,11 +193,11 @@ Tras la revisión, el PR se fusionó en `main` mediante *squash and merge*. Esta
 
 Una vez fusionado el PR de la Parte C, y con los checks `lint`, `test` y `package` ya ejecutados al menos una vez, se editó la protección de `main` creada en el Boletín 2 desde **Settings → Rulestes  → Protect main**. Se activó **Require status checks to pass before merging**, se seleccionaron los tres checks como obligatorios, se marcó **Require branches to be up to date before merging** (obliga a actualizar la rama del PR respecto a `main` si esta ha avanzado) y se comprobó que **Bypass list** estaba vacía, de modo que la regla también se aplica a los administradores.
 
-![configuración de la protección de main](./parte-d-proteccion-main.png)
+![configuración de la protección de main](./imagenes/parte-d-proteccion-main.png)
 
 Para verificarlo se creó la rama `feat/ci-parte-d`, se rompió un test a propósito y se abrió el [Pull Request #15](https://github.com/david30520/boletines-pc/pull/15). El job `lint` terminó en verde, `test` en rojo y `package` no se ejecutó, y GitHub deshabilitó el botón de fusión indicando que los checks obligatorios no se cumplían. La fusión también quedó bloqueada para el administrador del repositorio.
 
-![pull request bloqueado por el check test en rojo](./parte-d-pr-bloqueado.png)
+![pull request bloqueado por el check test en rojo](./imagenes/parte-d-pr-bloqueado.png)
 
 El PR se cerró sin fusionar para no introducir el test roto en `main`. Esta parte corresponde al commit [a121d94](https://github.com/david30520/boletines-pc/commit/a121d9402a7458ad0e543e90e2e0fddf714b4b4e), que existe solo en la rama `feat/ci-parte-d`.
 
@@ -207,7 +207,7 @@ El PR se cerró sin fusionar para no introducir el test roto en `main`. Esta par
 
 La API key de Ollama no puede estar en el repositorio, así que se guardó como secreto en **Settings → Secrets and variables → Actions** con el nombre `OLLAMA_API_KEY`. El workflow la lee como `${{ secrets.OLLAMA_API_KEY }}` y la recibe en una variable de entorno; GitHub la enmascara en los logs y no se puede leer una vez guardada. Los PRs procedentes de forks no tienen acceso a los secretos.
 
-![secreto OLLAMA_API_KEY configurado](./parte-e-secreto.png)
+![secreto OLLAMA_API_KEY configurado](./imagenes/parte-e-secreto.png)
 
 El contenido de `.github/workflows/ia-review.yml` es el siguiente:
 
@@ -282,10 +282,10 @@ El workflow también gestiona los errores: si falla la obtención de los cambios
 
 Al abrir el [Pull Request #16](https://github.com/david30520/boletines-pc/pull/16), el workflow publicó el resumen generado por la IA.
 
-![comentario de la IA en el PR](./parte-e-resumen-ia.png)
+![comentario de la IA en el PR](./imagenes/parte-e-resumen-ia.png)
 
 **Badge del CI.** Se añadió al `README.md` el badge del workflow `ci.yml`, que muestra el estado de la última ejecución en `main` y enlaza a la pestaña Actions ([PR #17](https://github.com/david30520/boletines-pc/pull/17)).
 
-![README con el badge de CI](./parte-e-badge.png)
+![README con el badge de CI](./imagenes/parte-e-badge.png)
 
 Esta parte corresponde a los commits [80fda03](https://github.com/david30520/boletines-pc/commit/80fda0361d8f33a71b82300d1ff57a23a1dd7fec) (revisión con IA) y [91f8a2e](https://github.com/david30520/boletines-pc/commit/91f8a2ec2ce6fa339a1ce57b388e1ab628104b31) (badge), generados al fusionar cada PR con *squash and merge*. Como en cada rama solo hubo un commit, se documenta únicamente el de `main`; los de las ramas siguen disponibles en `feat/ci-parte-e-ia` y `feat/ci-parte-e-badge`.
