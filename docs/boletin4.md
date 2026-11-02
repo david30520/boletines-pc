@@ -76,13 +76,13 @@
 - **Qué se hizo:** Commit generado por GitHub al hacer *squash and merge* del [PR #16](https://github.com/david30520/boletines-pc/pull/16) desde la rama `feat/ci-parte-e-ia`. Añade el workflow `ia-review.yml`, que en cada PR obtiene el diff con `gh pr diff`, lo envía a la API de Ollama Cloud y publica un comentario con un resumen en lenguaje natural. La API key se guarda como secreto del repositorio (`OLLAMA_API_KEY`) y no está en el código.
 - **Autor:** oscarab6.
 - **Relación con el boletín:** Parte E (gestión de secretos y revisión con IA).
-- **Uso de IA:** Claude (claude.ai), para diseñar el workflow y la gestión del secreto. Prompt: "vamos con la parte final E".
+- **Uso de IA:** se ha usado Claude con el siguiente prompt: «Genera un workflow tal que, cada vez que se haga un pull request, se ejecute una revisión de código por parte de una IA de manera que genere un resumen en lenguaje natural de qué se ha cambiado. El API token se tiene que gestionar con secretos». 
 
 ### 11. `docs: añade badge de CI al README (#17)`
 - **Qué se hizo:** Commit generado por GitHub al hacer *squash and merge* del [PR #17](https://github.com/david30520/boletines-pc/pull/17) desde la rama `feat/ci-parte-e-badge`. Añade al `README.md` el badge del workflow `ci.yml`, enlazado a la página de ejecuciones en Actions.
 - **Autor:** David Abellán Bleda.
 - **Relación con el boletín:** Parte E (badge del estado del CI).
-- **Uso de IA:** Claude (claude.ai), para obtener la sintaxis del badge. Prompt: "vamos con la parte final E".
+- **Uso de IA:** se ha usado Claude con el prompt: «añade un badge del estado del CI al README».
 
 ## Descripción narrativa de lo hecho en la sesión y relación con los commits
 
@@ -191,7 +191,7 @@ Tras la revisión, el PR se fusionó en `main` mediante *squash and merge*. Esta
 
 ### Parte D
 
-Una vez fusionado el PR de la Parte C, y con los checks `lint`, `test` y `package` ya ejecutados al menos una vez, se editó la protección de `main` creada en el Boletín 2 desde **Settings → Branches**. Se activó **Require status checks to pass before merging**, se seleccionaron los tres checks como obligatorios, se marcó **Require branches to be up to date before merging** (obliga a actualizar la rama del PR respecto a `main` si esta ha avanzado) y se comprobó que **Do not allow bypassing the above settings** estaba activada, de modo que la regla también se aplica a los administradores.
+Una vez fusionado el PR de la Parte C, y con los checks `lint`, `test` y `package` ya ejecutados al menos una vez, se editó la protección de `main` creada en el Boletín 2 desde **Settings → Rulestes  → Protect main**. Se activó **Require status checks to pass before merging**, se seleccionaron los tres checks como obligatorios, se marcó **Require branches to be up to date before merging** (obliga a actualizar la rama del PR respecto a `main` si esta ha avanzado) y se comprobó que **Bypass list** estaba vacía, de modo que la regla también se aplica a los administradores.
 
 ![configuración de la protección de main](./imagenes/parte-d-proteccion-main.png)
 
@@ -203,11 +203,82 @@ El PR se cerró sin fusionar para no introducir el test roto en `main`. Esta par
 
 ### Parte E
 
-**Revisión de PRs con IA y gestión de secretos.** Se creó un workflow independiente, `ia-review.yml`, que se dispara en cada Pull Request. Obtiene los cambios con `gh pr diff`, los envía a un modelo de Ollama Cloud y publica en el PR un comentario con un resumen en lenguaje natural de lo modificado.
+**Revisión de PRs con IA y gestión de secretos.** Se creó un workflow independiente, `ia-review.yml`, que se dispara en cada Pull Request. Obtiene los cambios con `gh pr diff`, los envía al modelo `gpt-oss:120b` de Ollama Cloud y publica en el PR un comentario con un resumen en lenguaje natural de lo modificado.
 
 La API key de Ollama no puede estar en el repositorio, así que se guardó como secreto en **Settings → Secrets and variables → Actions** con el nombre `OLLAMA_API_KEY`. El workflow la lee como `${{ secrets.OLLAMA_API_KEY }}` y la recibe en una variable de entorno; GitHub la enmascara en los logs y no se puede leer una vez guardada. Los PRs procedentes de forks no tienen acceso a los secretos.
 
 ![secreto OLLAMA_API_KEY configurado](./imagenes/parte-e-secreto.png)
+
+El contenido de `.github/workflows/ia-review.yml` es el siguiente:
+
+```yaml
+name: Revisión con IA
+
+on:
+  pull_request:
+
+concurrency:
+  group: ia-review-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write # publicar el comentario en el PR
+
+jobs:
+  resumen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      OLLAMA_MODEL: gpt-oss:120b # nombre exacto devuelto por /api/tags
+    steps:
+      - name: Resumir el PR con IA
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          set +e
+          ok=1
+
+          # Cambios del PR (se recorta para no pasarse del contexto del modelo)
+          gh pr diff "$PR_NUMBER" > full.diff || ok=0
+          head -c 60000 full.diff > diff.txt
+          [ -s diff.txt ] || ok=0
+
+          # Petición al modelo
+          if [ "$ok" = 1 ]; then
+            jq -n --arg model "$OLLAMA_MODEL" --rawfile diff diff.txt '{
+              model: $model,
+              stream: false,
+              messages: [
+                {role: "system", content: "Eres un revisor de código. Responde siempre en español y en Markdown."},
+                {role: "user", content: ("Resume en lenguaje natural qué cambios introduce este Pull Request y señala, si los hay, posibles problemas o mejoras.\n\n" + $diff)}
+              ]
+            }' > req.json
+
+            curl --silent --show-error --fail --max-time 180 \
+              https://ollama.com/api/chat \
+              -H "Authorization: Bearer $OLLAMA_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d @req.json -o resp.json || ok=0
+          fi
+
+          # Respuesta del modelo (vacía = error)
+          if [ "$ok" = 1 ]; then
+            jq -er '.message.content | select(length > 0)' resp.json > review.md || ok=0
+          fi
+
+          if [ "$ok" = 0 ]; then
+            echo "La IA ha fallado" > review.md
+          fi
+
+          # Un único comentario que se actualiza en cada push
+          gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file review.md
+```
+
+El workflow también gestiona los errores: si falla la obtención de los cambios, el contenido que se va a enviar está vacío, falla la petición a Ollama o no se puede extraer una respuesta válida, el comentario contiene exactamente **«La IA ha fallado»**. Cuando se suben nuevos cambios al PR, se actualiza el comentario existente.
 
 Al abrir el [Pull Request #16](https://github.com/david30520/boletines-pc/pull/16), el workflow publicó el resumen generado por la IA.
 

@@ -2,47 +2,58 @@
 
 ## Resumen de commits
 
-| # | Mensaje del commit | Qué se hizo | Autor | Enlace |
-|---|--------------------|-------------|-------|--------|
-| 1 | `ci: añade workflow de publicación de la imagen en GHCR (#18)` | Workflow `release.yml` que construye la imagen Docker y la publica en GHCR con tags `sha-`, SemVer y `latest` | oscarab6 | [a6a0046](https://github.com/david30520/boletines-pc/commit/a6a0046c31e124494fbab055555316e93ebbde2b) |
-| 2 | `chore: fija la versión 1.0.0 en el pom.xml (#19)` | Cambio de la versión del proyecto en el `pom.xml` de `0.0.1-SNAPSHOT` a `1.0.0`, sobre el que se crea la etiqueta `v1.0.0` | David Abellán Bleda | [96b49af](https://github.com/david30520/boletines-pc/commit/96b49afe7abd8bacc2ff1a26508304eb4975fc7f) |
-| 3 | `docs: añade las memorias de los boletines 1 a 4 (#20)` | Carpeta `docs/` con las memorias de los boletines 1 a 4 y sus capturas | David Abellán Bleda | [86a7f99](https://github.com/david30520/boletines-pc/commit/86a7f99c30e807e1efca4ab3cc56a7a570d7d9ad) |
-| 4 | `docs: añade script que genera la web de la documentación (#21)` | Script `docs/generar_site.py` que genera `docs/site/` con un HTML por cada md y un índice | oscarab6 | [786dec4](https://github.com/david30520/boletines-pc/commit/786dec4815f6b714b1501d586c646eb9167307cf) |
-| 5 | `ci: añade workflow de publicación en GitHub Pages (#22)` | Workflow `pages.yml` que en cada push a `main` genera la web con el script y la publica en GitHub Pages | David Abellán Bleda | [eb48be0](https://github.com/david30520/boletines-pc/commit/eb48be0bc02e560f6f8b41e989a2f31ac368009f) |
+| #   | Mensaje del commit                                               | Qué se hizo                                                                                                                | Autor               | Enlace                                                                                                |
+| --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | `ci: añade workflow de publicación de la imagen en GHCR (#18)`   | Workflow `release.yml` que construye la imagen Docker y la publica en GHCR con tags `sha-`, SemVer y `latest`              | oscarab6            | [a6a0046](https://github.com/david30520/boletines-pc/commit/a6a0046c31e124494fbab055555316e93ebbde2b) |
+| 2   | `chore: fija la versión 1.0.0 en el pom.xml (#19)`               | Cambio de la versión del proyecto en el `pom.xml` de `0.0.1-SNAPSHOT` a `1.0.0`, sobre el que se crea la etiqueta `v1.0.0` | David Abellán Bleda | [96b49af](https://github.com/david30520/boletines-pc/commit/96b49afe7abd8bacc2ff1a26508304eb4975fc7f) |
+| 3   | `docs: añade las memorias de los boletines 1 a 4 (#20)`          | Carpeta `docs/` con las memorias de los boletines 1 a 4 y sus capturas                                                     | David Abellán Bleda | [86a7f99](https://github.com/david30520/boletines-pc/commit/86a7f99c30e807e1efca4ab3cc56a7a570d7d9ad) |
+| 4   | `docs: añade script que genera la web de la documentación (#21)` | Script `docs/generar_site.py` que genera `docs/site/` con un HTML por cada md y un índice                                  | oscarab6            | [786dec4](https://github.com/david30520/boletines-pc/commit/786dec4815f6b714b1501d586c646eb9167307cf) |
+| 5   | `ci: añade workflow de publicación en GitHub Pages (#22)`        | Workflow `pages.yml` que en cada push a `main` genera la web con el script y la publica en GitHub Pages                    | David Abellán Bleda | [eb48be0](https://github.com/david30520/boletines-pc/commit/eb48be0bc02e560f6f8b41e989a2f31ac368009f) |
+| 6   | `docs: añade la memoria del Boletín 5 (#23)`                     | Añadir la memoria del Boletín 5 y sus capturas para publicarlas junto con las anteriores.                                  | oscarab6            | [2b407da](https://github.com/david30520/boletines-pc/commit/2b407daf3b0e51658710caca1239bc18b5a87363) |
 
 ## Detalle por commit
 
 ### 1. `ci: añade workflow de publicación de la imagen en GHCR (#18)`
+
 - **Qué se hizo:** se añadió el workflow `.github/workflows/release.yml`, que se ejecuta con cada push a `main` y con cada etiqueta `v*.*.*`. Hace login en `ghcr.io` con el `GITHUB_TOKEN`, calcula los tags de la imagen con `docker/metadata-action` (`sha-<commit>`, `X.Y.Z`, `X.Y`, `X` y `latest`) y construye y publica la imagen con `docker/build-push-action` usando el `Dockerfile` del repositorio. Los permisos se limitan a `contents: read` y `packages: write`. PR [#18](https://github.com/david30520/boletines-pc/pull/18).
 - **Autor:** oscarab6
 - **Relación con el boletín:** apartado 3, Parte A: pipeline de publicación de la imagen en GitHub Container Registry.
 - **Uso de IA:** no se ha usado.
 
 ### 2. `chore: fija la versión 1.0.0 en el pom.xml (#19)`
+
 - **Qué se hizo:** se cambió la versión de `tasks-api` en el `pom.xml` de `0.0.1-SNAPSHOT` a `1.0.0`, para que coincidan la versión del JAR, la de la etiqueta Git `v1.0.0` y la de la imagen publicada. Sobre este commit se creó después la etiqueta anotada `v1.0.0` y la Release. PR [#19](https://github.com/david30520/boletines-pc/pull/19).
 - **Autor:** David Abellán Bleda
 - **Relación con el boletín:** apartado 3, Parte B: publicación de la primera versión con SemVer.
 - **Uso de IA:** no se ha usado.
 
 ### 3. `docs: añade las memorias de los boletines 1 a 4 (#20)`
+
 - **Qué se hizo:** se creó la carpeta `docs/` en la raíz del repositorio con las memorias de los boletines 1 a 4 y todas sus capturas, en la misma carpeta que los md, para poder generar a partir de ellas la web de documentación. PR [#20](https://github.com/david30520/boletines-pc/pull/20).
 - **Autor:** David Abellán Bleda
 - **Relación con el boletín:** apartado 3, Parte D: traer las memorias de cada sesión al repositorio de la API.
 - **Uso de IA:** no se ha usado.
 
 ### 4. `docs: añade script que genera la web de la documentación (#21)`
+
 - **Qué se hizo:** se añadió `docs/generar_site.py`, un script en Python que lee todos los `.md` de `docs/`, genera en `docs/site/` un `.html` por cada uno (con `markdown-it-py`, que sigue CommonMark como GitHub), copia las imágenes y crea un `index.html` que enlaza a todas las páginas. Se añadió `docs/requirements.txt` con la dependencia y `docs/site/` al `.gitignore`. PR [#21](https://github.com/david30520/boletines-pc/pull/21).
 - **Autor:** oscarab6
 - **Relación con el boletín:** apartado 3, Parte D: script que genera la web de la documentación a partir de los md.
 - **Uso de IA:** se ha usado Claude con el prompt: «genera un script en python que lea todos los .md de docs/ y genere, para cada uno, un .html equivalente más un index.html que enlace a todos. Deben guardarse en docs/site/».
 
 ### 5. `ci: añade workflow de publicación en GitHub Pages (#22)`
+
 - **Qué se hizo:** se añadió el workflow `.github/workflows/pages.yml`, que se ejecuta en cada push a `main` (y a mano con `workflow_dispatch`). El job `build` instala Python y `markdown-it-py`, ejecuta `docs/generar_site.py` y sube `docs/site/` como artefacto de Pages; el job `deploy` lo publica en el entorno `github-pages` con las acciones oficiales. Los permisos se limitan a `contents: read`, `pages: write` e `id-token: write`. PR [#22](https://github.com/david30520/boletines-pc/pull/22).
 - **Autor:** David Abellán Bleda
 - **Relación con el boletín:** apartado 3, Parte D: automatizar la publicación de la documentación en GitHub Pages.
 - **Uso de IA:** se ha usado Claude con el prompt: «genera un workflow que, en cada push a main, ejecute el script y publique docs/site/ en GitHub Pages».
 
-## Descripción narrativa de lo hecho en la sesión y relación con los commits
+### 6. `docs: añade la memoria del Boletín 5 (#23)`
+
+- **Qué se hizo:** Añadir la memoria del Boletín 5 y sus capturas para publicarlas junto con las anteriores. PR [#23](https://github.com/david30520/boletines-pc/pull/23).
+- **Autor:** oscarab6
+- **Relación con el boletín:** parte D Github Pages.
+- **Uso de IA:** no se ha usado.
 
 ### Parte A
 
@@ -53,17 +64,17 @@ Se ha añadido el workflow `.github/workflows/release.yml`, que se ejecuta con c
 **¿Qué ocurre al fusionar un PR a `main` y al publicar una etiqueta `vX.Y.Z`?**
 
 1. **Al fusionar un PR a `main`**, el squash genera un push a `refs/heads/main` y se dispara el workflow. Se generan dos tags:
-   - `sha-<hash corto>` del commit de squash, que permite saber exactamente de qué commit sale la imagen. En esta parte, `sha-a6a0046`.
-   - `latest`, porque la regla `type=raw,value=latest,enable={{is_default_branch}}` se activa al ser `main` la rama por defecto.
+    - `sha-<hash corto>` del commit de squash, que permite saber exactamente de qué commit sale la imagen. En esta parte, `sha-a6a0046`.
+    - `latest`, porque la regla `type=raw,value=latest,enable={{is_default_branch}}` se activa al ser `main` la rama por defecto.
 
-   Las reglas `type=semver` no generan nada, porque la referencia es una rama y no una etiqueta de versión.
+    Las reglas `type=semver` no generan nada, porque la referencia es una rama y no una etiqueta de versión.
 
 2. **Al publicar una etiqueta `vX.Y.Z`**, el push es a `refs/tags/vX.Y.Z`. Se generan:
-   - `sha-<hash corto>` del commit al que apunta la etiqueta.
-   - `X.Y.Z`, `X.Y` y `X`, a partir de las tres reglas `type=semver`, que quitan la `v` del nombre de la etiqueta. Sirven para que quien use la imagen pueda fijar una versión exacta o seguir automáticamente los parches (`X.Y`) o las versiones compatibles (`X`).
-   - `latest`. La regla `type=raw` no se activa, porque una etiqueta no es la rama por defecto, pero `docker/metadata-action` tiene por defecto `flavor: latest=auto`, que añade `latest` cuando hay tags SemVer que no son prerelease.
+    - `sha-<hash corto>` del commit al que apunta la etiqueta.
+    - `X.Y.Z`, `X.Y` y `X`, a partir de las tres reglas `type=semver`, que quitan la `v` del nombre de la etiqueta. Sirven para que quien use la imagen pueda fijar una versión exacta o seguir automáticamente los parches (`X.Y`) o las versiones compatibles (`X`).
+    - `latest`. La regla `type=raw` no se activa, porque una etiqueta no es la rama por defecto, pero `docker/metadata-action` tiene por defecto `flavor: latest=auto`, que añade `latest` cuando hay tags SemVer que no son prerelease.
 
-   Como la etiqueta se crea sobre un commit que ya estaba en `main`, el tag `sha-<hash>` ya existía y pasa a apuntar a la imagen recién construida.
+    Como la etiqueta se crea sobre un commit que ya estaba en `main`, el tag `sha-<hash>` ya existía y pasa a apuntar a la imagen recién construida.
 
 Tras fusionar el PR, la ejecución de `Release` terminó correctamente:
 
@@ -153,7 +164,68 @@ Para convertir el Markdown se usa la librería `markdown-it-py`, que sigue el es
 
 **Publicación automática.** En **Settings → Pages** se ha cambiado **Source** a **GitHub Actions**. Con la otra opción, "Deploy from a branch", GitHub serviría directamente archivos subidos a una rama, pero el HTML no está en el repositorio: solo existe durante la ejecución del workflow. Además, el repositorio es público, que es un requisito de GitHub Pages en cuentas gratuitas.
 
-El workflow `.github/workflows/pages.yml` se ejecuta en cada push a `main` y tiene dos jobs:
+El contenido del workflow `.github/workflows/pages.yml` es el siguiente:
+
+```
+name: Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # permite relanzarlo a mano desde Actions
+
+permissions:
+  contents: read # checkout
+  pages: write # publicar en GitHub Pages
+  id-token: write # verificar que el despliegue sale de este repositorio
+
+# Una sola publicación a la vez; si llegan dos pushes seguidos, la segunda espera
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r docs/requirements.txt
+
+      - name: Generar la web
+        run: python docs/generar_site.py
+
+      - uses: actions/configure-pages@v6
+
+      - name: Subir la web como artefacto de Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+
+```
+
+Se ejecuta en cada push a `main` y tiene dos jobs:
 
 1. `build`: hace el checkout, instala Python y las dependencias, ejecuta el script y sube `docs/site/` como artefacto de Pages con `actions/upload-pages-artifact`.
 2. `deploy`: publica ese artefacto en el entorno `github-pages` con `actions/deploy-pages`.
@@ -164,8 +236,8 @@ Tras fusionar el PR #22, el workflow `Pages` terminó correctamente:
 
 ![Ejecución del workflow Pages con los jobs build y deploy en verde](./imagenes/parte-d-pages-verde.png)
 
-La documentación queda publicada en https://david30520.github.io/boletines-pc/, con un índice que enlaza a cada boletín:
+La documentación queda publicada en [GitHub Pages](https://david30520.github.io/boletines-pc/), con un índice que enlaza a cada boletín:
 
 ![Web de la documentación publicada en GitHub Pages](./imagenes/parte-d-web.png)
 
-Esta memoria se añade a `docs/` en un último PR, de modo que el propio workflow la publica junto con las anteriores.
+Esta memoria se añade a `docs/` en un último PR(commit, de modo que el propio workflow la publica junto con las anteriores.
