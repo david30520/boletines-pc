@@ -67,11 +67,11 @@ Se ha añadido el workflow `.github/workflows/release.yml`, que se ejecuta con c
 
 Tras fusionar el PR, la ejecución de `Release` terminó correctamente:
 
-![Ejecución del workflow Release en verde tras fusionar a main](./parte-a-release-verde.png)
+![Ejecución del workflow Release en verde tras fusionar a main](./imagenes/parte-a-release-verde.png)
 
 La imagen aparece en la pestaña Packages del repositorio con el tag `sha-a6a0046`, el commit de squash de esta parte. Al publicarse se le asignó también `latest`, pero la captura está hecha después de la Parte B y ese tag ya se ha movido a la imagen `1.0.0`, que es la última construida. Esto muestra la diferencia entre ambos tipos de tag: `sha-a6a0046` siempre identifica la misma imagen, mientras que `latest` va pasando a la imagen más reciente:
 
-![Package boletines-pc en GHCR con la imagen sha-a6a0046 y la imagen 1.0.0 con latest](./parte-a-packages.png)
+![Package boletines-pc en GHCR con la imagen sha-a6a0046 y la imagen 1.0.0 con latest](./imagenes/parte-a-packages.png)
 
 ### Parte B
 
@@ -92,15 +92,15 @@ Se usa una etiqueta anotada (`-a`) y no una ligera porque la anotada es un objet
 
 Sí. El push de la etiqueta coincide con el filtro `tags: [ "v*.*.*" ]` de `release.yml`, así que el workflow `Release` se ejecuta otra vez, ahora con la referencia `refs/tags/v1.0.0`:
 
-![Ejecución del workflow Release disparada por la etiqueta v1.0.0](./parte-b-release-tag-verde.png)
+![Ejecución del workflow Release disparada por la etiqueta v1.0.0](./imagenes/parte-b-release-tag-verde.png)
 
 Las tres reglas `type=semver` generan los tags `1.0.0`, `1.0` y `1` a partir del nombre de la etiqueta. Además se generan `sha-96b49af` (el commit al que apunta la etiqueta) y `latest`, por el `flavor: latest=auto` explicado en la Parte A. En Packages se ve que todos estos tags comparten el mismo digest, es decir, son la misma imagen con varios nombres:
 
-![Package boletines-pc con los tags 1.0.0, 1.0, 1, latest y sha](./parte-b-packages-semver.png)
+![Package boletines-pc con los tags 1.0.0, 1.0, 1, latest y sha](./imagenes/parte-b-packages-semver.png)
 
 Por último, se ha creado la Release `v1.0.0` en GitHub a partir de la etiqueta, con las notas generadas automáticamente ("Generate release notes"), que recogen los PR fusionados hasta esta versión, y un párrafo inicial que resume qué incluye:
 
-![Release v1.0.0 publicada en GitHub con las notas generadas](./parte-b-release.png)
+![Release v1.0.0 publicada en GitHub con las notas generadas](./imagenes/parte-b-release.png)
 
 ### Parte C
 
@@ -133,7 +133,7 @@ curl http://localhost:8080/actuator/health
 
 La respuesta es `{"status":"UP"}`, así que la imagen descargada del registro arranca correctamente y se conecta a la base de datos:
 
-![curl al endpoint de salud respondiendo UP](./parte-c-health-up.png)
+![curl al endpoint de salud respondiendo UP](./imagenes/parte-c-health-up.png)
 
 Al terminar se han eliminado los contenedores y la red con `docker rm -f db api && docker network rm tareas-net`.
 
@@ -162,10 +162,10 @@ Igual que en la Parte A, se concede el mínimo privilegio: `contents: read` para
 
 Tras fusionar el PR #22, el workflow `Pages` terminó correctamente:
 
-![Ejecución del workflow Pages con los jobs build y deploy en verde](./parte-d-pages-verde.png)
+![Ejecución del workflow Pages con los jobs build y deploy en verde](./imagenes/parte-d-pages-verde.png)
 
 La documentación queda publicada en https://david30520.github.io/boletines-pc/, con un índice que enlaza a cada boletín:
 
-![Web de la documentación publicada en GitHub Pages](./parte-d-web.png)
+![Web de la documentación publicada en GitHub Pages](./imagenes/parte-d-web.png)
 
 Esta memoria se añade a `docs/` en un último PR, de modo que el propio workflow la publica junto con las anteriores.

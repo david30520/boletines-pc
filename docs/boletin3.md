@@ -69,7 +69,7 @@
 ### Parte A
 
 La herramienta Docker (Docker Engine y Docker Compose) ya se encontraba instalada en nuestros PCs. En la imagen inferior podemos ver la versión y la ejecución de una imagen de prueba.
-![docker instalado](./dockerinstall.png)
+![docker instalado](./imagenes/dockerinstall.png)
 
 ### Parte B
 
@@ -93,7 +93,7 @@ Este endpoint es la base de las partes siguientes: lo usarán el `HEALTHCHECK` d
 
 Para comprobarlo arrancamos la aplicación en local y consultamos el endpoint, que devuelve `{"status":"UP"}`:
 
-![actuator health](./actuatorhealth.png)
+![actuator health](./imagenes/actuatorhealth.png)
 
 Esta parte corresponde al commit [f5720d0](https://github.com/david30520/boletines-pc/commit/f5720d0) (`feat: añadir endpoint de salud con Actuator`).
 
@@ -103,11 +103,11 @@ Creamos un `Dockerfile` multi-stage en la raíz del proyecto. La primera etapa (
 
 Construimos la imagen y arrancamos un contenedor; el endpoint `/api/tasks` responde y, tras el `start-period`, `docker ps` muestra el contenedor como `(healthy)`:
 
-![docker ps healthy](./dockerps.png)
+![docker ps healthy](./imagenes/dockerps.png)
 
 **Comparación de tamaños.** Construimos solo la etapa de build con `--target build`:
 
-![docker images](./dockerimages.png)
+![docker images](./imagenes/dockerimages.png)
 
 La imagen `tareas-api:build` ocupa 755 MB frente a 378 MB de `tareas-api:0.1`. La diferencia se debe a que la etapa de build contiene el JDK completo, Maven, las dependencias descargadas en `~/.m2`, el código fuente y los artefactos de compilación, mientras que la imagen final solo contiene el JRE, `curl` y el JAR. Además de ahorrar espacio, reduce la superficie de ataque: cada herramienta que no está en la imagen es una vulnerabilidad menos.
 
@@ -127,15 +127,15 @@ Creamos un `docker-compose.yml` con dos servicios:
 
 Levantamos el stack con `docker compose up --build -d` y comprobamos que ambos servicios llegan a `(healthy)`:
 
-![compose ps](./composeps.png)
+![compose ps](./imagenes/composeps.png)
 
 **Comprobación de persistencia.** Insertamos una tarea con `POST /api/tasks`, ejecutamos `docker compose down` y `docker compose up -d`, y la tarea seguía en `GET /api/tasks`:
 
-![persistencia tras down](./persistencia.png)
+![persistencia tras down](./imagenes/persistencia.png)
 
 Después repetimos con `docker compose down -v` y la lista volvió vacía:
 
-![lista vacía tras down -v](./down-v.png)
+![lista vacía tras down -v](./imagenes/down-v.png)
 
 **Diferencia entre `down` y `down -v`.** `docker compose down` detiene y elimina los contenedores y la red creada por Compose, pero conserva los volúmenes nombrados. Como los datos de PostgreSQL están en el volumen `db-data`, al volver a levantar el stack el nuevo contenedor de `db` monta el mismo volumen y recupera la información. `docker compose down -v` elimina además los volúmenes, así que se borran los datos y PostgreSQL inicializa una base de datos nueva y vacía. Un contenedor por sí solo es efímero: lo que sobrevive es lo que está en un volumen.
 
@@ -163,11 +163,11 @@ En el `docker-compose.yml` sustituimos los valores escritos a mano por referenci
 
 Antes de arrancar comprobamos con `docker compose config` que las variables se resuelven correctamente:
 
-![docker compose config](./composeconfig.png)
+![docker compose config](./imagenes/composeconfig.png)
 
 Después partimos de cero con `docker compose down -v`, levantamos el stack con `docker compose up --build -d` y verificamos que todo sigue funcionando:
 
-![stack con .env](./composeenv.png)
+![stack con .env](./imagenes/composeenv.png)
 
 Es importante saber que PostgreSQL solo usa `POSTGRES_USER`, `POSTGRES_PASSWORD` y `POSTGRES_DB` la primera vez que inicializa el volumen. Si se cambia la contraseña en `.env` con el volumen ya creado, la base de datos conserva la antigua y la API no puede conectarse; en desarrollo se soluciona con `docker compose down -v`.
 
@@ -194,11 +194,11 @@ Un *dev container* define el entorno de desarrollo como código: quien clone el 
 
 Abrimos el proyecto con *Dev Containers: Reopen in Container* y comprobamos que las herramientas están disponibles:
 
-![dev container](./devcontainer.png)
+![dev container](./imagenes/devcontainer.png)
 
 Dentro del dev container ejecutamos `docker compose up --build` y la API respondió desde el navegador de nuestra máquina en `http://127.0.0.1:8080/actuator/health`:
 
-![health desde el host](./devcontainer-health.png)
+![health desde el host](./imagenes/devcontainer-health.png)
 
 Esta parte corresponde al commit [fb97de5](https://github.com/david30520/boletines-pc/commit/fb97de5) (`chore: configurar entorno de desarrollo con Dev Containers`).
 
@@ -221,7 +221,7 @@ Para publicar la imagen en Docker Hub seguimos estos pasos.
 
 1. **Autenticación** con `docker login`, usando un *Personal Access Token* en lugar de la contraseña de la cuenta, por ser más seguro:
 
-   ![docker login](./dockerlogin.png)
+   ![docker login](./imagenes/dockerlogin.png)
 
 2. **Etiquetado.** La imagen local `tareas-api:0.1` no lleva el nombre del usuario, y Docker necesita ese prefijo para saber a qué repositorio subirla, por lo que creamos un nuevo nombre (alias) que apunta a la misma imagen:
 
@@ -235,15 +235,15 @@ Para publicar la imagen en Docker Hub seguimos estos pasos.
    docker push david30520/tareas-api:0.1
 ```
 
-   ![docker push](./dockerpush.png)
+   ![docker push](./imagenes/dockerpush.png)
 
 4. **Verificación.** La imagen aparece en el repositorio de Docker Hub con la etiqueta `0.1`:
 
-   ![docker hub](./dockerhub.png)
+   ![docker hub](./imagenes/dockerhub.png)
 
    Para comprobar que es portable, eliminamos la imagen local con `docker rmi` y la descargamos de nuevo con `docker pull david30520/tareas-api:0.1`. 
    
-   ![docker pull](./dockerpull.png)
+   ![docker pull](./imagenes/dockerpull.png)
 
 La imagen está publicada en el repositorio público [david30520/tareas-api](https://hub.docker.com/r/david30520/tareas-api) de Docker Hub, con la etiqueta 0.1. Puede descargarse mediante ```docker pull david30520/tareas-api:0.1```, sin disponer del código fuente ni de Maven. Para ejecutar la API es necesario arrancar el contenedor y configurar su conexión con PostgreSQL.
 
@@ -407,18 +407,18 @@ docker run --rm --init rea-tests:node-24.18 npm run test:acceptance
 
 La siguiente captura recoge la salida obtenida al ejecutar `test:fast`:
 
-![Resultados de test:fast](./testfast.png)
+![Resultados de test:fast](./imagenes/testfast.png)
 
 La siguiente captura recoge la salida obtenida al ejecutar `test:mcp`:
 
-![Resultados de test:mcp](./testmcp.png)
+![Resultados de test:mcp](./imagenes/testmcp.png)
 
 La siguiente captura recoge la salida obtenida al ejecutar `test:python`:
 
-![Resultados de test:python](./testpython.png)
+![Resultados de test:python](./imagenes/testpython.png)
 
 La siguiente captura recoge la salida obtenida al ejecutar `test:acceptance`:
 
-![Resultados de test:acceptance](./testaceptacion.png)
+![Resultados de test:acceptance](./imagenes/testaceptacion.png)
 
 

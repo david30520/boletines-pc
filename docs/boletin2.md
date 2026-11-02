@@ -249,7 +249,7 @@ Antes de trabajar con PRs en el repositorio, conviene configurar las reglas de c
 
 Por otra parte, se han generado plantillas para los Issue (`.github/ISSUE_TEMPLATE/enhancement.md` y `.github/ISSUE_TEMPLATE/bug.md`). La primera se emplea para proponer una mejora o funcionalidad nueva al repositorio mientras que la segunda se utiliza para informar de errores (bugs). En la siguiente imagen podemos observar como Github reconoce estas plantillas al crear una nueva issue:
 
-![Plantillas de Issues](./issues-templates.png)
+![Plantillas de Issues](./imagenes/issues-templates.png)
 
 Las tres plantillas anteriores se añadieron en el commit #3.
 
@@ -285,7 +285,7 @@ Lo que estamos consiguiendo con estas reglas es proteger la rama principal y gar
 
 Para comprobar que la protección funcionaba correctamente se intentó realizar un push directo sobre main:
 
-![Intento de push directo a main](./push-fallido.png)
+![Intento de push directo a main](./imagenes/push-fallido.png)
 
 GitHub rechazó el push, demostrando que no es posible introducir directamente nuevos commits en main y que los cambios deben incorporarse mediante un Pull Request.
 
@@ -313,11 +313,11 @@ En este apartado se provocó intencionadamente un conflicto en un Pull Request. 
 
 En la siguiente imagen se observa que, al abrir el Pull Request correspondiente a la primera rama, no se produce ningún conflicto y GitHub permite fusionarlo automáticamente:
 
-![Captura PR conflicto1](./PRconflicto1.png)
+![Captura PR conflicto1](./imagenes/PRconflicto1.png)
 
 Una vez aprobado y fusionado este primer Pull Request en `main`, se abrió el correspondiente a la rama `feat/conflicto2`. En este caso, GitHub detectó que ambas ramas habían modificado la misma zona del código y mostró que existía un conflicto que debía resolverse antes de poder realizar la fusión:
 
-![Captura PR conflicto2](./PRconflicto2_2.png)
+![Captura PR conflicto2](./imagenes/PRconflicto2_2.png)
 
 Para resolverlo se realizó en local un `rebase` de la segunda rama sobre la versión actualizada de `main`. Estando situados en `feat/conflicto2`, se ejecutó:
 
@@ -327,11 +327,11 @@ git rebase main
 
 Git detuvo el proceso al detectar el conflicto y solicitó resolverlo antes de continuar:
 
-![Captura rebase](./rebase.png)
+![Captura rebase](./imagenes/rebase.png)
 
 El conflicto se encontraba en la línea 8 del archivo `InvalidStatusTransitionException.java`, como puede observarse a continuación:
 
-![Captura conflicto VS Code](./conflicto_vscode.png)
+![Captura conflicto VS Code](./imagenes/conflicto_vscode.png)
 
 Una vez editado el archivo y elegida la versión final correcta, se marcó el conflicto como resuelto y se continuó el proceso de `rebase`:
 
@@ -340,7 +340,7 @@ git add src/main/java/.../InvalidStatusTransitionException.java
 git rebase --continue
 ```
 
-![Captura conflicto resuelto](./conflicto_vscode_resuelto.png)
+![Captura conflicto resuelto](./imagenes/conflicto_vscode_resuelto.png)
 
 Como el `rebase` modifica el historial de commits de la rama, fue necesario actualizar la rama remota mediante:
 
@@ -352,7 +352,7 @@ Se utilizó `--force-with-lease` en lugar de `--force` para evitar sobrescribir 
 
 Tras actualizar la rama, GitHub actualizó automáticamente el Pull Request y dejó de mostrar el conflicto, permitiendo continuar con su revisión y posterior fusión:
 
-![Captura conflicto aprobado](./PRconflicto2_aprobado.png)
+![Captura conflicto aprobado](./imagenes/PRconflicto2_aprobado.png)
 
 ### Parte F
 
@@ -412,4 +412,4 @@ Finalmente, un integrante cualquiera abre el PR desde feat/nombre-de-la-mejora d
 
 Tras la revisión del [PR](https://github.com/AntonioUMU/practicas-continuas/pull/8) por parte de la otra pareja, se genera el merge commit correspondiente (commit #11) hacia su main.
 
-![Captura PR aprobado](./PRaprobado.png)
+![Captura PR aprobado](./imagenes/PRaprobado.png)
