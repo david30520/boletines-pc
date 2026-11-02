@@ -236,7 +236,7 @@ Tras fusionar el PR #22, el workflow `Pages` terminó correctamente:
 
 ![Ejecución del workflow Pages con los jobs build y deploy en verde](./imagenes/parte-d-pages-verde.png)
 
-La documentación queda publicada en [GitHub Pages](https://david30520.github.io/boletines-pc/), con un índice que enlaza a cada boletín:, con un índice que enlaza a cada boletín:
+La documentación queda publicada en [GitHub Pages](https://david30520.github.io/boletines-pc/), con un índice que enlaza a cada boletín:
 
 ![Web de la documentación publicada en GitHub Pages](./imagenes/parte-d-web.png)
 
