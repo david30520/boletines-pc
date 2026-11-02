@@ -9,6 +9,7 @@
 | 3 | `docs: añade las memorias de los boletines 1 a 4 (#20)` | Carpeta `docs/` con las memorias de los boletines 1 a 4 y sus capturas | David Abellán Bleda | [86a7f99](https://github.com/david30520/boletines-pc/commit/86a7f99c30e807e1efca4ab3cc56a7a570d7d9ad) |
 | 4 | `docs: añade script que genera la web de la documentación (#21)` | Script `docs/generar_site.py` que genera `docs/site/` con un HTML por cada md y un índice | oscarab6 | [786dec4](https://github.com/david30520/boletines-pc/commit/786dec4815f6b714b1501d586c646eb9167307cf) |
 | 5 | `ci: añade workflow de publicación en GitHub Pages (#22)` | Workflow `pages.yml` que en cada push a `main` genera la web con el script y la publica en GitHub Pages | David Abellán Bleda | [eb48be0](https://github.com/david30520/boletines-pc/commit/eb48be0bc02e560f6f8b41e989a2f31ac368009f) |
+| 6 | `docs: añade la memoria del Boletín 5 (#23)` | Añadir la memoria del Boletín 5 y sus capturas para publicarlas junto con las anteriores. | oscarab6 | [2b407da](https://github.com/david30520/boletines-pc/commit/2b407daf3b0e51658710caca1239bc18b5a87363) |
 
 ## Detalle por commit
 
@@ -42,7 +43,11 @@
 - **Relación con el boletín:** apartado 3, Parte D: automatizar la publicación de la documentación en GitHub Pages.
 - **Uso de IA:** se ha usado Claude con el prompt: «genera un workflow que, en cada push a main, ejecute el script y publique docs/site/ en GitHub Pages».
 
-## Descripción narrativa de lo hecho en la sesión y relación con los commits
+### 6. `docs: añade la memoria del Boletín 5 (#23)`
+- **Qué se hizo:** Añadir la memoria del Boletín 5 y sus capturas para publicarlas junto con las anteriores. PR [#23](https://github.com/david30520/boletines-pc/pull/23).
+- **Autor:** oscarab6
+- **Relación con el boletín:** parte D Github Pages.
+- **Uso de IA:** no se ha usado.
 
 ### Parte A
 
@@ -67,11 +72,11 @@ Se ha añadido el workflow `.github/workflows/release.yml`, que se ejecuta con c
 
 Tras fusionar el PR, la ejecución de `Release` terminó correctamente:
 
-![Ejecución del workflow Release en verde tras fusionar a main](./imagenes/parte-a-release-verde.png)
+![Ejecución del workflow Release en verde tras fusionar a main](./parte-a-release-verde.png)
 
 La imagen aparece en la pestaña Packages del repositorio con el tag `sha-a6a0046`, el commit de squash de esta parte. Al publicarse se le asignó también `latest`, pero la captura está hecha después de la Parte B y ese tag ya se ha movido a la imagen `1.0.0`, que es la última construida. Esto muestra la diferencia entre ambos tipos de tag: `sha-a6a0046` siempre identifica la misma imagen, mientras que `latest` va pasando a la imagen más reciente:
 
-![Package boletines-pc en GHCR con la imagen sha-a6a0046 y la imagen 1.0.0 con latest](./imagenes/parte-a-packages.png)
+![Package boletines-pc en GHCR con la imagen sha-a6a0046 y la imagen 1.0.0 con latest](./parte-a-packages.png)
 
 ### Parte B
 
@@ -92,15 +97,15 @@ Se usa una etiqueta anotada (`-a`) y no una ligera porque la anotada es un objet
 
 Sí. El push de la etiqueta coincide con el filtro `tags: [ "v*.*.*" ]` de `release.yml`, así que el workflow `Release` se ejecuta otra vez, ahora con la referencia `refs/tags/v1.0.0`:
 
-![Ejecución del workflow Release disparada por la etiqueta v1.0.0](./imagenes/parte-b-release-tag-verde.png)
+![Ejecución del workflow Release disparada por la etiqueta v1.0.0](./parte-b-release-tag-verde.png)
 
 Las tres reglas `type=semver` generan los tags `1.0.0`, `1.0` y `1` a partir del nombre de la etiqueta. Además se generan `sha-96b49af` (el commit al que apunta la etiqueta) y `latest`, por el `flavor: latest=auto` explicado en la Parte A. En Packages se ve que todos estos tags comparten el mismo digest, es decir, son la misma imagen con varios nombres:
 
-![Package boletines-pc con los tags 1.0.0, 1.0, 1, latest y sha](./imagenes/parte-b-packages-semver.png)
+![Package boletines-pc con los tags 1.0.0, 1.0, 1, latest y sha](./parte-b-packages-semver.png)
 
 Por último, se ha creado la Release `v1.0.0` en GitHub a partir de la etiqueta, con las notas generadas automáticamente ("Generate release notes"), que recogen los PR fusionados hasta esta versión, y un párrafo inicial que resume qué incluye:
 
-![Release v1.0.0 publicada en GitHub con las notas generadas](./imagenes/parte-b-release.png)
+![Release v1.0.0 publicada en GitHub con las notas generadas](./parte-b-release.png)
 
 ### Parte C
 
@@ -133,7 +138,7 @@ curl http://localhost:8080/actuator/health
 
 La respuesta es `{"status":"UP"}`, así que la imagen descargada del registro arranca correctamente y se conecta a la base de datos:
 
-![curl al endpoint de salud respondiendo UP](./imagenes/parte-c-health-up.png)
+![curl al endpoint de salud respondiendo UP](./parte-c-health-up.png)
 
 Al terminar se han eliminado los contenedores y la red con `docker rm -f db api && docker network rm tareas-net`.
 
@@ -153,7 +158,68 @@ Para convertir el Markdown se usa la librería `markdown-it-py`, que sigue el es
 
 **Publicación automática.** En **Settings → Pages** se ha cambiado **Source** a **GitHub Actions**. Con la otra opción, "Deploy from a branch", GitHub serviría directamente archivos subidos a una rama, pero el HTML no está en el repositorio: solo existe durante la ejecución del workflow. Además, el repositorio es público, que es un requisito de GitHub Pages en cuentas gratuitas.
 
-El workflow `.github/workflows/pages.yml` se ejecuta en cada push a `main` y tiene dos jobs:
+El contenido del workflow `.github/workflows/pages.yml` es el siguiente:
+
+```
+name: Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # permite relanzarlo a mano desde Actions
+
+permissions:
+  contents: read # checkout
+  pages: write # publicar en GitHub Pages
+  id-token: write # verificar que el despliegue sale de este repositorio
+
+# Una sola publicación a la vez; si llegan dos pushes seguidos, la segunda espera
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r docs/requirements.txt
+
+      - name: Generar la web
+        run: python docs/generar_site.py
+
+      - uses: actions/configure-pages@v6
+
+      - name: Subir la web como artefacto de Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+
+```
+
+Se ejecuta en cada push a `main` y tiene dos jobs:
 
 1. `build`: hace el checkout, instala Python y las dependencias, ejecuta el script y sube `docs/site/` como artefacto de Pages con `actions/upload-pages-artifact`.
 2. `deploy`: publica ese artefacto en el entorno `github-pages` con `actions/deploy-pages`.
@@ -162,10 +228,10 @@ Igual que en la Parte A, se concede el mínimo privilegio: `contents: read` para
 
 Tras fusionar el PR #22, el workflow `Pages` terminó correctamente:
 
-![Ejecución del workflow Pages con los jobs build y deploy en verde](./imagenes/parte-d-pages-verde.png)
+![Ejecución del workflow Pages con los jobs build y deploy en verde](./parte-d-pages-verde.png)
 
-La documentación queda publicada en https://david30520.github.io/boletines-pc/, con un índice que enlaza a cada boletín:
+La documentación queda publicada en La documentación queda publicada en [GitHub Pages](https://david30520.github.io/boletines-pc/), con un índice que enlaza a cada boletín:, con un índice que enlaza a cada boletín:
 
-![Web de la documentación publicada en GitHub Pages](./imagenes/parte-d-web.png)
+![Web de la documentación publicada en GitHub Pages](./parte-d-web.png)
 
-Esta memoria se añade a `docs/` en un último PR, de modo que el propio workflow la publica junto con las anteriores.
+Esta memoria se añade a `docs/` en un último PR(commit, de modo que el propio workflow la publica junto con las anteriores.
