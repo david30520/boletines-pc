@@ -18,10 +18,22 @@ from markdown_it import MarkdownIt
 
 DOCS = Path(__file__).resolve().parent
 SITE = DOCS / "site"
+IMAGENES = DOCS / "imagenes"
 EXTENSIONES_IMAGEN = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"}
 
 # CommonMark (como GitHub) con tablas activadas
 md = MarkdownIt("commonmark").enable("table")
+
+
+def imagen_en_site(renderer, tokens, idx, options, env):
+    """Ajusta las rutas para las imágenes copiadas directamente a docs/site/."""
+    token = tokens[idx]
+    origen = token.attrGet("src") or ""
+    token.attrSet("src", re.sub(r"^(\./)?imagenes/", r"\1", origen))
+    return renderer.image(tokens, idx, options, env)
+
+
+md.add_render_rule("image", imagen_en_site)
 
 PLANTILLA = """<!doctype html>
 <html lang="es">
@@ -87,7 +99,7 @@ def main() -> None:
         )
         paginas.append((fichero.stem, titulo))
 
-    for fichero in DOCS.iterdir():
+    for fichero in IMAGENES.iterdir():
         if fichero.is_file() and fichero.suffix.lower() in EXTENSIONES_IMAGEN:
             shutil.copy2(fichero, SITE / fichero.name)
 
